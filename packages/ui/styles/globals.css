@@ -1,0 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+
+/* ── Default (Midnight Glass) ── */
+:root {
+  --surface-900: 0 0% 3%;
+  --surface-800: 0 0% 7%;
+  --surface-700: 0 0% 12%;
+  --surface-100: 0 0% 95%;
+  --surface-glass: 0 0% 6%;
+  --primary-500: 0 0% 90%;
+  --primary-400: 0 0% 82%;
+  --primary-300: 0 0% 74%;
+  --text-high: 0 0% 96%;
+  --text-muted: 0 0% 65%;
+  --text-subtle: 0 0% 50%;
+  --border-subtle: 0 0% 100%;
+  --text-on-overlay: 0 0% 100%;
+  --overlay-bg: rgba(255, 255, 255, 0.15);
+  --overlay-bg-hover: rgba(255, 255, 255, 0.2);
+  color-scheme: dark;
+  background-color: hsl(var(--surface-900));
+  color: hsl(var(--text-high));
+  font-family: 'Manrope', system-ui, sans-serif;
+}
+
+/* ── Light Mode ── */
+[data-theme="light"] {
+  --surface-900: 0 0% 98%;
+  --surface-800: 0 0% 96%;
+  --surface-700: 0 0% 92%;
+  --surface-100: 0 0% 100%;
+  --surface-glass: 0 0% 100%;
+  --primary-500: 220 90% 56%;
+  --primary-400: 220 90% 64%;
+  --primary-300: 220 90% 72%;
+  --text-high: 0 0% 10%;
+  --text-muted: 0 0% 45%;
+  --text-subtle: 0 0% 60%;
+  --border-subtle: 0 0% 0%;
+  --text-on-overlay: 0 0% 10%;
+  --overlay-bg: rgba(0, 0, 0, 0.05);
+  --overlay-bg-hover: rgba(0, 0, 0, 0.09);
+  color-scheme: light;
+  background-color: hsl(var(--surface-900));
+  color: hsl(var(--text-high));
+}
+
+/* ── OLED Pure Black ── */
+[data-theme="oled-black"] {
+  --surface-900: 0 0% 0%;
+  --surface-800: 0 0% 2%;
+  --surface-700: 0 0% 5%;
+  --surface-100: 0 0% 5%;
+  --surface-glass: 0 0% 0%;
+  --primary-500: 0 0% 100%;
+  --primary-400: 0 0% 90%;
+  --primary-300: 0 0% 80%;
+  --text-high: 0 0% 100%;
+  --text-muted: 0 0% 70%;
+  --text-subtle: 0 0% 55%;
+  --border-subtle: 0 0% 100%;
+  --text-on-overlay: 0 0% 100%;
+  --overlay-bg: rgba(255, 255, 255, 0.08);
+  --overlay-bg-hover: rgba(255, 255, 255, 0.13);
+  color-scheme: dark;
+  background-color: hsl(var(--surface-900));
+  color: hsl(var(--text-high));
+}
+
+body {
+  margin: 0;
+  background: hsl(var(--surface-900));
+  color: hsl(var(--text-high));
+  font-family: 'Manrope', system-ui, sans-serif;
+  text-rendering: optimizeLegibility;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Glass overlay helper — adapts to theme */
+.glass-overlay {
+  background-image: var(--glass-overlay, linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0)));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}

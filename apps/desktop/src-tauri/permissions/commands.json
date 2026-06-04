@@ -1,0 +1,28 @@
+{
+  "identifier": "allow-all-commands",
+  "description": "Allows all custom commands in the main binary",
+  "commands": [
+    "get_api_config",
+    "create_character",
+    "get_local_character",
+    "download_character",
+    "get_local_messages",
+    "save_message",
+    "get_model_status",
+    "download_ai_model",
+    "run_inference",
+    "open_mail_client",
+    "login",
+    "signup",
+    "logout",
+    "get_device_id",
+    "delete_ai_model",
+    "open_external_url",
+    "check_database_setup",
+    "unlock_profile",
+    "clone_character_for_chat",
+    "get_all_local_characters",
+    "save_cloud_character_stub",
+    "delete_downloaded_character"
+  ]
+}

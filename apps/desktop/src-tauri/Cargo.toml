@@ -1,0 +1,65 @@
+[package]
+name = "klie"
+version = "1.0.0"
+description = "Klie desktop app"
+authors = ["you"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "klie_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.21"
+scraper = "0.19"
+urlencoding = "2.1"
+
+
+sysinfo = "0.30"
+reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls", "multipart"] }
+libc = "0.2"
+sha2 = "0.10"
+tokio = { version = "1", features = ["full"] }
+# Local SQLite database with SQLCipher encryption
+rusqlite = { version = "0.31", features = ["bundled-sqlcipher"] }
+# Securely store the DB encryption key in the system keychain
+keyring = "2.3"
+# BIP-39 for the Recovery Key system (mnemonic phrases)
+bip39 = { version = "2.0", features = ["rand"] }
+# Encryption and random generation
+rand = "0.8"
+aes-gcm = "0.10"
+flate2 = "1.0"
+brotli = "6.0"
+zeroize = { version = "1.7", features = ["derive"] }
+# String obfuscation to protect sensitive strings in the release binary
+obfstr = "0.4"
+uuid = { version = "1.7", features = ["v4", "serde"] }
+# Tauri plugins
+tauri-plugin-stronghold = "2"
+tauri-plugin-dialog = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSWorkspace"] }
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSURL"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+tauri-plugin-opener = "2"
+
+[profile.release]
+strip = true
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+opt-level = 3

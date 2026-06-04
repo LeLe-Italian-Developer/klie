@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+
+# Rust / Tauri build artifacts
+apps/desktop/src-tauri/target/
+
+# Turbo cache
+.turbo/
+
+# Environment files – NEVER commit these
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# Keys and certs
+*.pem
+*.key
+*.enc
+
+# IDE
+.vscode/settings.json
+.idea/

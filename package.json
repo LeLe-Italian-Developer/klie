@@ -1,0 +1,24 @@
+{
+  "name": "klie",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": "20.x"
+  },
+  "packageManager": "pnpm@10.32.1",
+  "description": "Klie – AI Character Chat Desktop App (Tauri + React)",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "turbo": "^2.9.14",
+    "typescript": "^5.9.3"
+  }
+}

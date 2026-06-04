@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Klie",
+  "version": "1.0.0",
+  "identifier": "com.gabrielegiannino.klie",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Klie",
+        "width": 1024,
+        "height": 720,
+        "minWidth": 1024,
+        "minHeight": 720,
+        "devtools": true
+      }
+    ],
+    "security": {
+      "csp": "default-src * 'unsafe-inline' 'unsafe-eval' tauri: http://tauri.localhost; script-src * 'unsafe-inline' 'unsafe-eval' tauri: http://tauri.localhost; style-src * 'unsafe-inline'; img-src * data: https: blob:; font-src * data:; connect-src *; frame-src *; object-src *"
+    },
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "infoPlist": "Info.plist"
+    }
+  }
+}
+

@@ -1,0 +1,30 @@
+name: "\U0001F4A1 Feature Request"
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Note:** This repo accepts issues only. Pull requests are not accepted.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      placeholder: "Is your feature request related to a problem? Describe it."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      placeholder: "Describe the solution you'd like."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: "Any alternative solutions or features you've considered."
