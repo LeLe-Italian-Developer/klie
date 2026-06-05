@@ -37,6 +37,7 @@ export type ChatBot = {
   avatarUrl?: string;
   lastMessage?: string;
   greeting?: string;
+  hasUserMessage?: boolean;
 };
 
 type ChatInterfaceProps = {
@@ -483,6 +484,54 @@ export default function ChatInterface({
   const [lastAiTag, setLastAiTag] = useState<string | null>(null);
   const [chatSettingsOpen, setChatSettingsOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsRef = useRef<HTMLDivElement>(null);
+  const headerTriggerRef = useRef<HTMLDivElement>(null);
+  const hoverTimeoutRef = useRef<any>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedChatIds, setSelectedChatIds] = useState<string[]>([]);
+
+  const handleDeleteSelected = async () => {
+    if (!onDeleteChat) return;
+    for (const id of selectedChatIds) {
+      await onDeleteChat(id);
+    }
+    setSelectedChatIds([]);
+    setSelectMode(false);
+  };
+
+  const handleMouseEnter = () => {
+    if (!hasHover) return;
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (!hasHover) return;
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => {
+      setDetailsOpen(false);
+    }, 150);
+  };
+
+  useEffect(() => {
+    if (!detailsOpen) return;
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        detailsRef.current &&
+        !detailsRef.current.contains(target) &&
+        headerTriggerRef.current &&
+        !headerTriggerRef.current.contains(target)
+      ) {
+        setDetailsOpen(false);
+      }
+    };
+    document.addEventListener("click", handleDocumentClick);
+    return () => document.removeEventListener("click", handleDocumentClick);
+  }, [detailsOpen]);
+
   const [chatSettingsTab, setChatSettingsTab] = useState<"multi" | "memory" | "world" | "character" | "internet" | "ai" | "report" | "checkpoints">("multi");
   const [mobileTabDropdownOpen, setMobileTabDropdownOpen] = useState(false);
   const [addingType, setAddingType] = useState<"memory" | "world" | "checkpoint" | null>(null);
@@ -670,7 +719,11 @@ export default function ChatInterface({
   const setMsgs = setMessages ?? setLocalMessages;
 
   const displayedBots = useMemo(
-    () => botsHistory.filter((bot) => !archivedIds.includes(bot.id) && !deletedIds.includes(bot.id)).slice(0, 12),
+    () => botsHistory.filter((bot) => {
+      if (archivedIds.includes(bot.id) || deletedIds.includes(bot.id)) return false;
+      const isNewEmpty = !bot.lastMessage || bot.lastMessage === "Start your Chat" || bot.lastMessage === "Start your chat";
+      return bot.hasUserMessage || !isNewEmpty;
+    }).slice(0, 12),
     [archivedIds, botsHistory, deletedIds],
   );
   const archivedBots = useMemo(
@@ -685,13 +738,13 @@ export default function ChatInterface({
   );
   const storyBots = useMemo(() => displayedBots.slice(0, 6), [displayedBots]);
   const activeBot = useMemo(
-    () => displayedBots.find((bot) => bot.name === activeName) ?? null,
-    [activeName, displayedBots],
+    () => botsHistory.find((bot) => bot.name === activeName) ?? null,
+    [activeName, botsHistory],
   );
 
   const activeCharDetails = useMemo(() => {
     if (!activeBot) return null;
-    return allCharacters.find((c: any) => c.id === activeBot.id) || null;
+    return allCharacters.find((c: any) => c.id === activeBot.id || c.name.toLowerCase() === activeBot.name.toLowerCase()) || null;
   }, [activeBot, allCharacters]);
 
   const activeCreator = useMemo(() => {
@@ -1244,37 +1297,77 @@ export default function ChatInterface({
   const SidebarContent = (
     <div className="flex h-full flex-col p-4 md:p-5">
       <div className="mb-5 flex items-center justify-between gap-3">
-        <div className="text-sm font-medium text-white">Messages</div>
-        <div className="flex items-center gap-2">
-          {onNewChat && (
-            <button
-              type="button"
-              onClick={onNewChat}
-              className="flex h-9 items-center gap-2 rounded-full bg-primary-500/10 px-3 text-xs font-semibold text-primary-400 ring-1 ring-primary-500/20 transition hover:bg-primary-500/20"
-            >
-              <PenIcon />
-              <span>New</span>
-            </button>
-          )}
-          {onOpenLibrary && (
-            <button
-              type="button"
-              onClick={onOpenLibrary}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.05] text-white ring-1 ring-white/6 transition hover:bg-white/[0.1]"
-              aria-label="Open character library"
-              title="Character Library"
-            >
-              <LibraryIcon />
-            </button>
-          )}
+        {selectMode ? (
           <button
             type="button"
-            onClick={onOpenArchived}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.05] text-white ring-1 ring-white/6 transition hover:bg-white/[0.1]"
-            aria-label="Open archived chats"
+            onClick={() => {
+              setSelectMode(false);
+              setSelectedChatIds([]);
+            }}
+            className="text-xs font-bold text-rose-400 hover:text-rose-300 transition cursor-pointer bg-rose-500/10 px-3 py-1.5 rounded-lg border border-rose-500/20"
           >
-            <ArchiveIcon />
+            Cancel
           </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setSelectMode(true)}
+            className="text-sm font-semibold text-white hover:opacity-80 transition cursor-pointer flex items-center gap-1.5"
+          >
+            <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <span>Select More</span>
+          </button>
+        )}
+        <div className="flex items-center gap-2">
+          {selectMode ? (
+            <button
+              type="button"
+              disabled={selectedChatIds.length === 0}
+              onClick={handleDeleteSelected}
+              className={`flex h-9 items-center gap-2 rounded-full px-4 text-xs font-bold transition-all ${
+                selectedChatIds.length > 0
+                  ? "bg-rose-500 text-white hover:bg-rose-600 cursor-pointer shadow-lg shadow-rose-500/20"
+                  : "bg-white/5 text-text-muted cursor-not-allowed border border-white/5"
+              }`}
+            >
+              <TrashIcon />
+              <span>Delete ({selectedChatIds.length})</span>
+            </button>
+          ) : (
+            <>
+              {onNewChat && (
+                <button
+                  type="button"
+                  onClick={onNewChat}
+                  className="flex h-9 items-center gap-2 rounded-full bg-primary-500/10 px-3 text-xs font-semibold text-primary-400 ring-1 ring-primary-500/20 transition hover:bg-primary-500/20"
+                >
+                  <PenIcon />
+                  <span>New</span>
+                </button>
+              )}
+              {onOpenLibrary && (
+                <button
+                  type="button"
+                  onClick={onOpenLibrary}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.05] text-white ring-1 ring-white/6 transition hover:bg-white/[0.1]"
+                  aria-label="Open character library"
+                  title="Character Library"
+                >
+                  <LibraryIcon />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onOpenArchived}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/[0.05] text-white ring-1 ring-white/6 transition hover:bg-white/[0.1]"
+                aria-label="Open archived chats"
+              >
+                <ArchiveIcon />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1299,7 +1392,15 @@ export default function ChatInterface({
             filteredPreviews.map(({ bot, time, unread, online, preview }) => (
               <button
                 key={bot.id}
-                onClick={() => onSelectBot?.(bot.id)}
+                onClick={() => {
+                  if (selectMode) {
+                    setSelectedChatIds(prev =>
+                      prev.includes(bot.id) ? prev.filter(id => id !== bot.id) : [...prev, bot.id]
+                    );
+                  } else {
+                    onSelectBot?.(bot.id);
+                  }
+                }}
                 className="group relative flex w-full items-center gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-white/[0.02] cursor-pointer"
               >
                 {activeBot?.id === bot.id && (
@@ -1307,7 +1408,22 @@ export default function ChatInterface({
                     className="absolute inset-0 bg-white/[0.08] rounded-2xl -z-10 border border-white/15 shadow-[0_0_15px_rgba(255,255,255,0.05)]"
                   />
                 )}
-                <div className="relative h-11 w-11 flex-shrink-0" onClick={() => onSelectBot?.(bot.id)}>
+                {selectMode && (
+                  <div className="flex-shrink-0 flex items-center justify-center mr-1">
+                    <div className={`h-5 w-5 rounded-full border flex items-center justify-center transition-all ${
+                      selectedChatIds.includes(bot.id)
+                        ? "border-primary-500 bg-primary-500 text-surface-900"
+                        : "border-white/30 bg-transparent"
+                    }`}>
+                      {selectedChatIds.includes(bot.id) && (
+                        <svg className="h-3.5 w-3.5 stroke-[3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <div className="relative h-11 w-11 flex-shrink-0">
                   {bot.avatarUrl ? (
                     <img src={bot.avatarUrl} alt={bot.name} className="h-full w-full rounded-full object-cover" />
                   ) : (
@@ -1317,7 +1433,7 @@ export default function ChatInterface({
                   )}
                   {online && <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[#090909] bg-emerald-500" />}
                 </div>
-                <div className="min-w-0 flex-1 text-left" onClick={() => onSelectBot?.(bot.id)}>
+                <div className="min-w-0 flex-1 text-left">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-semibold text-text-high">{bot.name}</span>
                     <span className="text-[10px] text-text-muted">{time}</span>
@@ -1331,16 +1447,18 @@ export default function ChatInterface({
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(bot.id);
-                  }}
-                  className="hidden h-8 w-8 items-center justify-center rounded-lg text-rose-400/40 transition-transform hover:bg-rose-500/10 hover:text-rose-400 group-hover:flex"
-                  title="Delete chat"
-                >
-                  <TrashIcon />
-                </button>
+                {!selectMode && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(bot.id);
+                    }}
+                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all cursor-pointer flex-shrink-0"
+                    title="Delete chat"
+                  >
+                    <TrashIcon />
+                  </button>
+                )}
               </button>
             ))
           )}
@@ -1506,7 +1624,7 @@ export default function ChatInterface({
 
             {activeBot && (
               <>
-                <header className="klie-chat-header absolute left-0 right-0 top-0 z-20 flex h-20 items-center justify-between border-b border-white/[0.06] bg-surface-900/40 px-5 backdrop-blur-xl">
+                <header className={`klie-chat-header absolute left-0 right-0 top-0 z-30 flex h-20 items-center justify-between border-b ${detailsOpen ? "border-transparent" : "border-white/[0.06]"} bg-surface-900/40 px-5 backdrop-blur-xl`}>
                   <div className="flex min-w-0 items-center gap-3">
                     <button
                       type="button"
@@ -1516,7 +1634,10 @@ export default function ChatInterface({
                       <BackIcon />
                     </button>
                     <div 
+                      ref={headerTriggerRef}
                       onClick={() => setDetailsOpen(!detailsOpen)}
+                      onMouseEnter={handleMouseEnter}
+                      onMouseLeave={handleMouseLeave}
                       className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition select-none min-w-0"
                     >
                       <div className="h-11 w-11 flex-shrink-0 overflow-hidden rounded-full ring-1 ring-white/10">
@@ -1546,15 +1667,24 @@ export default function ChatInterface({
                   </div>
                 </header>
 
-                {detailsOpen && (
-                  <>
-                    <div className="absolute inset-0 z-28 bg-black/40 backdrop-blur-sm" onClick={() => setDetailsOpen(false)} />
-                    <div className="absolute top-20 left-0 right-0 z-30 bg-surface-950/95 border-b border-white/[0.08] p-6 backdrop-blur-2xl animate-in slide-in-from-top-5 duration-300 flex flex-col items-center justify-center text-center gap-4 shadow-2xl">
-                      <div className="relative flex flex-col items-center gap-3.5 w-full max-w-sm">
+                <AnimatePresence>
+                  {detailsOpen && (
+                    <>
+                      <div className="absolute inset-0 z-24 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setDetailsOpen(false)} />
+                      <motion.div
+                        ref={detailsRef}
+                        initial={{ y: -250, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -250, opacity: 0 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        onMouseEnter={handleMouseEnter}
+                        onMouseLeave={handleMouseLeave}
+                        className="absolute top-20 left-0 right-0 z-25 bg-surface-950/95 border-b border-white/[0.08] p-6 backdrop-blur-2xl flex flex-col items-center justify-center text-center gap-3 shadow-2xl"
+                      >
                         {/* Big Avatar Image */}
-                        <div className="h-24 w-24 overflow-hidden rounded-full ring-2 ring-white/10 shadow-lg">
+                        <div className="h-36 w-36 overflow-hidden rounded-2xl ring-2 ring-white/10 shadow-lg flex-shrink-0">
                           {activeBot?.avatarUrl ? (
-                            <img src={activeBot.avatarUrl} alt={activeName} className="h-full w-full object-cover animate-in fade-in zoom-in-95 duration-200" />
+                            <img src={activeBot.avatarUrl} alt={activeName} className="h-full w-full object-cover" />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center bg-white/10 text-2xl font-bold text-white">
                               {activeName.slice(0, 2).toUpperCase()}
@@ -1562,44 +1692,32 @@ export default function ChatInterface({
                           )}
                         </div>
                         
-                        {/* Name and Creator */}
-                        <div>
-                          <h3 className="text-base font-bold text-white tracking-tight">{activeName}</h3>
-                          {activeCharDetails?.creatorName && (
-                            <div className="text-xs text-text-muted mt-1.5 flex items-center justify-center gap-1.5">
-                              <span>by</span>
-                              {onSelectCreator && activeCreator ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    onSelectCreator(activeCreator);
-                                    setDetailsOpen(false);
-                                  }}
-                                  className="inline-flex items-center gap-1 bg-white/[0.04] border border-white/5 hover:border-white/10 hover:bg-white/10 px-2 py-1 rounded-lg text-primary-400 font-bold hover:underline cursor-pointer transition"
-                                >
-                                  <span className="truncate">{activeCharDetails.creatorName}</span>
-                                </button>
-                              ) : (
-                                <span className="font-semibold text-text-high">{activeCharDetails.creatorName}</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Close button */}
-                        <button
-                          type="button"
-                          onClick={() => setDetailsOpen(false)}
-                          className="absolute -top-1 -right-1 p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-text-subtle hover:text-white transition cursor-pointer"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
+                        {/* Character Name */}
+                        <h3 className="text-base font-bold text-white tracking-tight">{activeName}</h3>
+                        
+                        {/* Creator Info */}
+                        {activeCharDetails?.creatorName && (
+                          <div className="text-xs text-text-muted">
+                            {onSelectCreator && activeCreator ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onSelectCreator(activeCreator);
+                                  setDetailsOpen(false);
+                                }}
+                                className="text-primary-400 font-bold hover:underline cursor-pointer"
+                              >
+                                by {activeCharDetails.creatorName}
+                              </button>
+                            ) : (
+                              <span className="font-semibold text-text-high">by {activeCharDetails.creatorName}</span>
+                            )}
+                          </div>
+                        )}
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
 
                 <div className="klie-chat-message-area flex-1 overflow-y-auto px-4 pb-28 pt-24 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
                   <div className="flex w-full flex-col gap-4">

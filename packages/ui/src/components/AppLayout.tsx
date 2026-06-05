@@ -24,6 +24,7 @@ type AppLayoutProps = {
   integrityStatus?: "OK" | "DEPRECATED" | "REVOKED" | "LOADING";
   integrityMessage?: string;
   updateUrl?: string;
+  deviceType?: "phone" | "tablet" | "desktop";
 };
 
 const navItems: { key: "home" | "chat" | "creators"; label: string; icon: string }[] = [
@@ -68,6 +69,7 @@ export default function AppLayout({
   integrityStatus = "OK",
   integrityMessage,
   updateUrl,
+  deviceType,
 }: AppLayoutProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -133,10 +135,9 @@ export default function AppLayout({
       </AnimatePresence>
 
       <div className="relative z-10 w-full px-2 pb-4 pt-3 md:px-4">
-        {/* Top bar — Premium Glass Header */}
         <header className="glass-header relative z-20 mb-4 flex items-center justify-between rounded-2xl px-3 py-2.5 md:px-4 md:py-3">
           {/* Profile button (left) */}
-          <div className="relative">
+          <div className="relative" onMouseLeave={() => setIsProfileOpen(false)}>
             <motion.button
               whileHover={hasHover ? { scale: 1.06 } : undefined}
               whileTap={{ scale: 0.94 }}
@@ -173,8 +174,11 @@ export default function AppLayout({
                       <p className="text-xs font-bold text-text-high truncate">{profileAlt}</p>
                       <p className="text-[10px] text-text-subtle font-medium mt-0.5">{subscriptionPlan} Plan</p>
                     </div>
-
-                    {menuItems.map((item, i) => (
+ 
+                    {(deviceType === "phone" 
+                      ? menuItems.filter(item => item.label === "Settings" || item.label === "Log Out")
+                      : menuItems
+                    ).map((item, i) => (
                       <motion.button
                         key={item.label}
                         custom={i}

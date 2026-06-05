@@ -3,7 +3,7 @@ import { invoke as tauriInvoke, Channel } from "@tauri-apps/api/core";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { listen as tauriListen, type UnlistenFn } from "@tauri-apps/api/event";
-import { ask } from "@tauri-apps/plugin-dialog";
+import { ask, save, open } from "@tauri-apps/plugin-dialog";
 import signupIllustration from "./assets/signup_illustration.png";
 import klieLogoWhite from "./assets/klie_logo_white.png";
 import appIconWhite from "./assets/app_icon_white.png";
@@ -19,8 +19,8 @@ import { gsap } from "gsap";
 import Lenis from "lenis";
 
 const hasHover = typeof window !== "undefined" && window.innerWidth >= 1024;
-// Base API URL – set via VITE_API_URL environment variable
-const API_URL = import.meta.env.VITE_API_URL as string;
+// Base API URL (always points to live production Vercel)
+const API_URL = "https://revtech.vercel.app";
 
 // Safe invoke helper (top-level for all components to access)
 const invoke = async <T,>(cmd: string, args?: any): Promise<T> => {
@@ -302,6 +302,7 @@ type Conversation = {
   characterId: string;
   lastMessage?: string;
   lastTimestamp?: string;
+  hasUserMessage?: boolean;
 };
 
 type Creator = {
@@ -371,7 +372,7 @@ const SESSION_STORAGE_KEY = "klie.session";
 const ADMIN_USER: StoredUser = {
   id: "admin-user",
   email: "admin@klie.app",
-  password: null,
+  password: "Admin123!",
   displayName: "Klie Admin",
   avatarUrl: "https://ui-avatars.com/api/?name=Klie+Admin&background=080808&color=ffffff",
   role: "admin",
@@ -859,7 +860,7 @@ function HomeView({
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000);
-        const res = await fetch(`${API_URL}/api/currency`, { signal: controller.signal });
+        const res = await fetch("https://revtech.vercel.app/api/currency", { signal: controller.signal });
         clearTimeout(timeoutId);
         if (res.ok) {
           const data = await res.json();
@@ -971,7 +972,7 @@ function HomeView({
                 <span className="w-1 h-1 rounded-full bg-text-subtle group-hover:bg-primary-400 transition" />
                 GitHub
               </a>
-              <a className="flex items-center gap-2 hover:text-text-high transition group" href="#">
+              <a className="flex items-center gap-2 hover:text-text-high transition group" href="https://www.reddit.com/r/KlieHub/" target="_blank" rel="noreferrer">
                 <span className="w-1 h-1 rounded-full bg-text-subtle group-hover:bg-primary-400 transition" />
                 Reddit
               </a>
@@ -1203,6 +1204,19 @@ function ChatView({
   const [activeAlertCategory, setActiveAlertCategory] = useState<HelpAlertCategory>(null);
   const [alertDismissedConvs, setAlertDismissedConvs] = useState<string[]>([]);
   const lastFetchedConvIdRef = useRef<string | null>(null);
+  const prevConversationIdRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    const prevId = prevConversationIdRef.current;
+    prevConversationIdRef.current = conversationId;
+
+    if (prevId && prevId !== conversationId) {
+      const prevConv = conversations.find(c => c.id === prevId);
+      if (prevConv && !prevConv.hasUserMessage) {
+        handleDeleteChat(prevId);
+      }
+    }
+  }, [conversationId, conversations]);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -1298,7 +1312,8 @@ function ChatView({
           } else {
             setMessages(loaded);
             const lastM = loaded[loaded.length - 1].content;
-            setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, lastMessage: lastM } : c));
+            const hasUser = loaded.some(m => m.role === "user");
+            setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, lastMessage: lastM, hasUserMessage: hasUser } : c));
           }
         } else {
           if (!activeConversation?.lastMessage) {
@@ -1380,6 +1395,9 @@ function ChatView({
                   }).catch((e) => console.warn("Failed to save cloud message locally:", e));
                 }
               }
+              const lastM = msgs[msgs.length - 1].content;
+              const hasUser = msgs.some((m: any) => m.role.toLowerCase() === "user");
+              setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, lastMessage: lastM, hasUserMessage: hasUser } : c));
             }
           }
         } catch (fetchErr) {
@@ -1438,6 +1456,11 @@ function ChatView({
           role: m.role.toLowerCase() as "user" | "ai",
           content: m.content
         })));
+        if (history.length > 0) {
+          const lastM = history[history.length - 1].content;
+          const hasUser = history.some(m => m.role.toLowerCase() === "user");
+          setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, lastMessage: lastM, hasUserMessage: hasUser } : c));
+        }
       }
     } catch (err) {
       console.error("Failed to restore checkpoint:", err);
@@ -1557,7 +1580,7 @@ function ChatView({
         if (idx < 0) return prev;
         const copy = [...prev];
         const [item] = copy.splice(idx, 1);
-        return [{ ...item, lastMessage: text }, ...copy];
+        return [{ ...item, lastMessage: text, hasUserMessage: true }, ...copy];
       });
     }
 
@@ -1733,6 +1756,7 @@ function ChatView({
         avatarUrl: char?.imageUrl,
         lastMessage: conv.lastMessage,
         greeting: char?.greeting,
+        hasUserMessage: conv.hasUserMessage,
       };
     });
   }, [conversations, allCharacters]);
@@ -1802,7 +1826,7 @@ function ChatView({
         onTalkOnDiscord={(botName: string) => {
           const foundChar = allCharacters.find(c => c.name.toLowerCase() === botName.toLowerCase());
           const botId = foundChar?.id || "fallback";
-          const botBrowserUrl = `${API_URL}/characters/${botId}`;
+          const botBrowserUrl = `https://revtech.vercel.app/characters/${botId}`;
 
           // Open the Bot Profile safely via standard Tauri opener in a single clean call
           openUrl(botBrowserUrl);
@@ -4127,8 +4151,16 @@ type SettingsPageProps = {
   setAppLanguage: (lang: string) => void;
   notificationsEnabled: boolean;
   setNotificationsEnabled: (next: boolean) => void;
-  backupEnabled: boolean;
-  setBackupEnabled: (next: boolean) => void;
+  iCloudEnabled: boolean;
+  setICloudEnabled: (next: boolean) => void;
+  googleDriveEnabled: boolean;
+  setGoogleDriveEnabled: (next: boolean) => void;
+  dropboxEnabled: boolean;
+  setDropboxEnabled: (next: boolean) => void;
+  protonEnabled: boolean;
+  setProtonEnabled: (next: boolean) => void;
+  onExportBackup: () => Promise<void>;
+  onImportBackup: () => Promise<void>;
   selectedTheme: string;
   setSelectedTheme: (theme: string) => void;
   selectedAppIcon: string;
@@ -4151,7 +4183,7 @@ type SettingsPageProps = {
   onBackToHome?: () => void;
 };
 
-function AccountPage({ currentUser, setCurrentUser }: SettingsPageProps) {
+function AccountPage({ currentUser, setCurrentUser, deviceType }: SettingsPageProps) {
   const [displayName, setDisplayName] = useState(currentUser.displayName);
   const [isEditingName, setIsEditingName] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
@@ -4283,29 +4315,29 @@ function AccountPage({ currentUser, setCurrentUser }: SettingsPageProps) {
               <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
             </motion.label>
           </div>
-          <div className="flex-1 space-y-2">
-            <div className="flex items-center gap-2">
+          <div className="flex-1 space-y-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
               {isEditingName ? (
                 <input
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="rounded-xl bg-surface-900/50 border border-border-subtle/10 px-3 py-1.5 text-base font-semibold text-text-high outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-400/20"
+                  className="rounded-xl bg-surface-900/50 border border-border-subtle/10 px-3 py-1.5 text-base font-semibold text-text-high outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-400/20 w-full"
                 />
               ) : (
-                <div className="font-display text-2xl font-black">{currentUser.displayName}</div>
+                <div className="font-display text-2xl font-black truncate">{currentUser.displayName}</div>
               )}
               {!isEditingName && (
                 <motion.button
                   whileHover={hasHover ? { scale: 1.05 } : undefined}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setIsEditingName(true)}
-                  className="rounded-lg bg-white/5 border border-border-subtle/10 px-2.5 py-1 text-xs font-bold text-text-muted hover:text-text-high hover:bg-white/10 transition-colors cursor-pointer"
+                  className="flex-shrink-0 rounded-lg bg-white/5 border border-border-subtle/10 px-2.5 py-1 text-xs font-bold text-text-muted hover:text-text-high hover:bg-white/10 transition-colors cursor-pointer"
                 >
                   Edit
                 </motion.button>
               )}
             </div>
-            <div className="text-xs font-semibold text-text-muted">{currentUser.email}</div>
+            <div className="text-xs font-semibold text-text-muted truncate">{currentUser.email}</div>
             {isEditingName && (
               <div className="flex items-center gap-2 pt-1">
                 <motion.button
@@ -4453,23 +4485,56 @@ function AccountPage({ currentUser, setCurrentUser }: SettingsPageProps) {
             <div className="font-display text-xl font-black text-primary-400">{planLabel}</div>
             <div className="text-xs font-bold text-text-muted capitalize">{planStatus}</div>
           </div>
-          <motion.button
-            whileHover={hasHover ? { scale: 1.02 } : undefined}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => {
-              openUrl(`${API_URL}/account`);
-            }}
-            className="rounded-full bg-white/5 border border-border-subtle/10 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-text-high hover:bg-white/10 transition-colors inline-block text-center cursor-pointer"
-          >
-            Manage Subscription
-          </motion.button>
+          {deviceType !== "phone" && deviceType !== "tablet" && (
+            <motion.button
+              whileHover={hasHover ? { scale: 1.02 } : undefined}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                openUrl("https://revtech.vercel.app/account");
+              }}
+              className="rounded-full bg-white/5 border border-border-subtle/10 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-text-high hover:bg-white/10 transition-colors inline-block text-center cursor-pointer"
+            >
+              Manage Subscription
+            </motion.button>
+          )}
+        </div>
+      </div>
+
+      <div className={settingsCardClass}>
+        <div className="text-[10px] uppercase tracking-[0.22em] text-text-muted font-bold">Metadata & Support</div>
+        <div className="mt-3 space-y-3">
+          <div className="flex items-center justify-between text-xs font-semibold gap-4 min-w-0">
+            <span className="text-text-muted flex-shrink-0">User ID</span>
+            <span className="text-text-high font-mono select-all truncate max-w-[240px] text-right" title={currentUser.id}>{currentUser.id}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border-subtle/10">
+            <button
+              onClick={() => openUrl("https://revtech.vercel.app/terms")}
+              className="py-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-white/5 border border-border-subtle/10 text-text-muted hover:text-text-high hover:bg-white/10 transition cursor-pointer text-center"
+            >
+              Terms of Service
+            </button>
+            <button
+              onClick={() => openUrl("https://revtech.vercel.app/privacy")}
+              className="py-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-white/5 border border-border-subtle/10 text-text-muted hover:text-text-high hover:bg-white/10 transition cursor-pointer text-center"
+            >
+              Privacy Policy
+            </button>
+            <button
+              onClick={() => openUrl("mailto:revtechcompany@icloud.com")}
+              className="col-span-2 py-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-[#E53E3E]/10 border border-[#E53E3E]/20 text-[#E53E3E] hover:bg-[#E53E3E]/20 transition cursor-pointer text-center"
+            >
+              Report Bug / Abuse
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function SettingsPage({ isSafe: _isSafe, setIsSafe: _setIsSafe, appLanguage, setAppLanguage, notificationsEnabled, setNotificationsEnabled, backupEnabled, setBackupEnabled, selectedQuant, setSelectedQuant, selectedContext, setSelectedContext }: SettingsPageProps) {
+function SettingsPage({ isSafe: _isSafe, setIsSafe: _setIsSafe, appLanguage, setAppLanguage, notificationsEnabled, setNotificationsEnabled, iCloudEnabled, setICloudEnabled, googleDriveEnabled, setGoogleDriveEnabled, dropboxEnabled, setDropboxEnabled, protonEnabled, setProtonEnabled, onExportBackup, onImportBackup, selectedQuant, setSelectedQuant, selectedContext, setSelectedContext }: SettingsPageProps) {
   const [modelStatus, setModelStatus] = useState<{
     installed: boolean;
     path: string;
@@ -4674,21 +4739,86 @@ function SettingsPage({ isSafe: _isSafe, setIsSafe: _setIsSafe, appLanguage, set
         </div>
 
         <div className={settingsCardClass}>
-          <div className="text-[10px] uppercase tracking-wider text-text-muted font-bold">Cloud Backup</div>
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-xs font-semibold text-text-muted">Enable cloud sync & backup</span>
+          <div className="text-[10px] uppercase tracking-wider text-text-muted font-bold">Data Backup & Sync</div>
+          <div className="mt-3 flex gap-2">
             <button
-              onClick={() => setBackupEnabled(!backupEnabled)}
-              className={`relative h-6 w-11 rounded-full transition-colors duration-200 cursor-pointer ${
-                backupEnabled ? "bg-[#34C759]" : "bg-[#39393D]"
-              }`}
+              onClick={onExportBackup}
+              className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-surface-900 border border-border-subtle/30 text-white hover:bg-surface-700 transition cursor-pointer"
             >
-              <motion.span
-                animate={{ x: backupEnabled ? 20 : 0 }}
-                transition={{ type: "spring", stiffness: 700, damping: 40 }}
-                className="absolute top-[2px] left-[2px] h-5 w-5 rounded-full bg-white shadow-md"
-              />
+              Export Data
             </button>
+            <button
+              onClick={onImportBackup}
+              className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-surface-900 border border-border-subtle/30 text-white hover:bg-surface-700 transition cursor-pointer"
+            >
+              Import Data
+            </button>
+          </div>
+
+          <div className="mt-4 border-t border-border-subtle/10 pt-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-text-muted">Sync with iCloud</span>
+              <button
+                onClick={() => setICloudEnabled(!iCloudEnabled)}
+                className={`relative h-6 w-11 rounded-full transition-colors duration-200 cursor-pointer ${
+                  iCloudEnabled ? "bg-[#34C759]" : "bg-[#39393D]"
+                }`}
+              >
+                <motion.span
+                  animate={{ x: iCloudEnabled ? 20 : 0 }}
+                  transition={{ type: "spring", stiffness: 700, damping: 40 }}
+                  className="absolute top-[2px] left-[2px] h-5 w-5 rounded-full bg-white shadow-md"
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-text-muted">Sync with Google Drive</span>
+              <button
+                onClick={() => setGoogleDriveEnabled(!googleDriveEnabled)}
+                className={`relative h-6 w-11 rounded-full transition-colors duration-200 cursor-pointer ${
+                  googleDriveEnabled ? "bg-[#34C759]" : "bg-[#39393D]"
+                }`}
+              >
+                <motion.span
+                  animate={{ x: googleDriveEnabled ? 20 : 0 }}
+                  transition={{ type: "spring", stiffness: 700, damping: 40 }}
+                  className="absolute top-[2px] left-[2px] h-5 w-5 rounded-full bg-white shadow-md"
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-text-muted">Sync with Dropbox</span>
+              <button
+                onClick={() => setDropboxEnabled(!dropboxEnabled)}
+                className={`relative h-6 w-11 rounded-full transition-colors duration-200 cursor-pointer ${
+                  dropboxEnabled ? "bg-[#34C759]" : "bg-[#39393D]"
+                }`}
+              >
+                <motion.span
+                  animate={{ x: dropboxEnabled ? 20 : 0 }}
+                  transition={{ type: "spring", stiffness: 700, damping: 40 }}
+                  className="absolute top-[2px] left-[2px] h-5 w-5 rounded-full bg-white shadow-md"
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-text-muted">Sync with Proton Drive</span>
+              <button
+                onClick={() => setProtonEnabled(!protonEnabled)}
+                className={`relative h-6 w-11 rounded-full transition-colors duration-200 cursor-pointer ${
+                  protonEnabled ? "bg-[#34C759]" : "bg-[#39393D]"
+                }`}
+              >
+                <motion.span
+                  animate={{ x: protonEnabled ? 20 : 0 }}
+                  transition={{ type: "spring", stiffness: 700, damping: 40 }}
+                  className="absolute top-[2px] left-[2px] h-5 w-5 rounded-full bg-white shadow-md"
+                />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -4879,7 +5009,7 @@ function UpdatesPage() {
   const [checking, setChecking] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState<boolean | null>(null);
   const [latestVersion, setLatestVersion] = useState("1.0.0");
-  const [downloadUrl, setDownloadUrl] = useState(`${API_URL}/download`);
+  const [downloadUrl, setDownloadUrl] = useState("https://revtech.vercel.app/download");
   const [updateNotes, setUpdateNotes] = useState("");
   const currentVersion = "1.0.0";
 
@@ -4891,7 +5021,7 @@ function UpdatesPage() {
       else if (navigator.userAgent.indexOf("Linux") !== -1) p = "linux";
       else if (navigator.userAgent.indexOf("Android") !== -1) p = "android";
 
-      const res = await fetch(`${API_URL}/api/desktop/check-version?v=${currentVersion}&p=${p}`);
+      const res = await fetch(`https://revtech.vercel.app/api/desktop/check-version?v=${currentVersion}&p=${p}`);
       const data = await res.json();
       if (data && data.latestVersion) {
         setLatestVersion(data.latestVersion);
@@ -5065,7 +5195,7 @@ function SupportPage() {
     {
       name: "Reddit",
       desc: "Follow our subreddit for community discussions and announcements.",
-      url: "https://reddit.com/",
+      url: "https://www.reddit.com/r/KlieHub/",
       icon: (
         <div style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FF4500' }}>
           <img src="/reddit-logo-cropped.png" alt="Reddit" style={{ width: 28, height: 28, objectFit: 'cover' }} />
@@ -5139,7 +5269,7 @@ function SupportPage() {
               whileHover={hasHover ? { scale: 1.02 } : undefined}
               whileTap={{ scale: 0.98 }}
               onClick={() => {
-                openUrl("mailto:support@klie.app");
+                openUrl("mailto:revtechcompany@icloud.com");
               }}
               className="rounded-full bg-white/5 border border-border-subtle/10 px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-text-high hover:bg-white/10 transition-colors inline-block text-center no-underline cursor-pointer"
             >
@@ -5441,6 +5571,7 @@ function SearchView({
       onLogout={onLogout}
       profileImageUrl={currentUser.avatarUrl}
       profileAlt={currentUser.displayName}
+      deviceType={isMobileOrTablet ? "phone" : "desktop"}
     >
       <motion.div
         initial={{ opacity: 0, y: 12, scale: 0.995 }}
@@ -5594,7 +5725,7 @@ const termsText = (
     <h4 className="text-[11px] font-bold text-text-high uppercase">Chapter 6: Cloud Gallery, Import Engine and Regulation (DSA & DMCA)</h4>
     <ul className="list-disc pl-4 space-y-2">
       <li><strong>UGC Liability:</strong> The User who imports or uploads JSON/SQL files (UGC) to the public Cloud Gallery guarantees that they possess the legal rights to do so, granting RevTech a worldwide, free license to host and distribute these files solely for the Klie service.</li>
-      <li><strong>Safe Harbor (DMCA):</strong> RevTech acts as a passive hosting provider. We comply with the Digital Millennium Copyright Act (US) and the Digital Services Act (EU). Any formal removal requests for copyright infringement (Take-Down) must be sent to: <a href="mailto:support@klie.app" style={{ color: "#ffffff", textDecoration: "underline" }}>support@klie.app</a>. RevTech will remove infringing content.</li>
+      <li><strong>Safe Harbor (DMCA):</strong> RevTech acts as a passive hosting provider. We comply with the Digital Millennium Copyright Act (US) and the Digital Services Act (EU). Any formal removal requests for copyright infringement (Take-Down) must be sent to: <a href="mailto:revtechcompany@icloud.com" style={{ color: "#ffffff", textDecoration: "underline" }}>revtechcompany@icloud.com</a>. RevTech will remove infringing content.</li>
       <li><strong>Repeat Offenders:</strong> Users who repeatedly infringe others' copyright will face permanent account termination.</li>
     </ul>
 
@@ -5737,7 +5868,7 @@ const privacyText = (
 
     <h4 className="text-[11px] font-bold text-text-high uppercase">9. CONTACT US</h4>
     <p>To exercise your privacy rights or for any questions regarding this Policy, you can contact RevTech's Data Protection Officer (DPO) at the following email address:</p>
-    <p><a href="mailto:support@klie.app" style={{ color: "#ffffff", textDecoration: "underline" }}><strong>support@klie.app</strong></a></p>
+    <p><a href="mailto:revtechcompany@icloud.com" style={{ color: "#ffffff", textDecoration: "underline" }}><strong>revtechcompany@icloud.com</strong></a></p>
   </div>
 );
 
@@ -6719,7 +6850,11 @@ function App() {
   const [creators, setCreators] = useState<Creator[]>(fallbackCreators);
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     const saved = localStorage.getItem("klie.conversations");
-    return saved ? JSON.parse(saved) : [];
+    const parsed = saved ? JSON.parse(saved) : [];
+    return parsed.filter((c: any) => {
+      const isNewEmpty = !c.lastMessage || c.lastMessage === "Start your Chat" || c.lastMessage === "Start your chat";
+      return c.hasUserMessage || !isNewEmpty;
+    });
   });
 
   useEffect(() => {
@@ -7138,9 +7273,24 @@ function App() {
     const v = window.localStorage.getItem("klie.notificationsEnabled");
     return v !== null ? v === "true" : true;
   });
-  const [backupEnabled, setBackupEnabled] = useState(() => {
+  const [iCloudEnabled, setICloudEnabled] = useState(() => {
     if (typeof window === "undefined") return false;
-    const v = window.localStorage.getItem("klie.backupEnabled");
+    const v = window.localStorage.getItem("klie.iCloudEnabled");
+    return v !== null ? v === "true" : false;
+  });
+  const [googleDriveEnabled, setGoogleDriveEnabled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const v = window.localStorage.getItem("klie.googleDriveEnabled");
+    return v !== null ? v === "true" : false;
+  });
+  const [dropboxEnabled, setDropboxEnabled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const v = window.localStorage.getItem("klie.dropboxEnabled");
+    return v !== null ? v === "true" : false;
+  });
+  const [protonEnabled, setProtonEnabled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const v = window.localStorage.getItem("klie.protonEnabled");
     return v !== null ? v === "true" : false;
   });
   const [nsfwMode, setNsfwMode] = useState(() => {
@@ -7183,10 +7333,41 @@ function App() {
 
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem("klie.appLanguage", appLanguage); }, [appLanguage]);
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem("klie.notificationsEnabled", String(notificationsEnabled)); }, [notificationsEnabled]);
-  useEffect(() => { 
-    if (typeof window !== "undefined") window.localStorage.setItem("klie.backupEnabled", String(backupEnabled)); 
-    invoke('set_backup_enabled', { enabled: backupEnabled }).catch((err) => console.warn("Failed to set backup enabled in Rust:", err));
-  }, [backupEnabled]);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("klie.iCloudEnabled", String(iCloudEnabled));
+      if (iCloudEnabled && currentUser?.id) {
+        invoke("sync_icloud", { profileId: currentUser.id }).catch((err) => console.warn("Failed to sync iCloud:", err));
+      }
+    }
+  }, [iCloudEnabled, currentUser?.id]);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("klie.googleDriveEnabled", String(googleDriveEnabled));
+      if (googleDriveEnabled && currentUser?.id) {
+        invoke("sync_google_drive", { profileId: currentUser.id }).catch((err) => console.warn("Failed to sync Google Drive:", err));
+      }
+    }
+  }, [googleDriveEnabled, currentUser?.id]);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("klie.dropboxEnabled", String(dropboxEnabled));
+      if (dropboxEnabled && currentUser?.id) {
+        invoke("sync_dropbox", { profileId: currentUser.id }).catch((err) => console.warn("Failed to sync Dropbox:", err));
+      }
+    }
+  }, [dropboxEnabled, currentUser?.id]);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("klie.protonEnabled", String(protonEnabled));
+      if (protonEnabled && currentUser?.id) {
+        invoke("sync_proton", { profileId: currentUser.id }).catch((err) => console.warn("Failed to sync Proton:", err));
+      }
+    }
+  }, [protonEnabled, currentUser?.id]);
+  useEffect(() => {
+    invoke('set_backup_enabled', { enabled: false }).catch(() => {});
+  }, []);
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem("klie.nsfwMode", String(nsfwMode)); }, [nsfwMode]);
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem("klie.selectedTheme", selectedTheme); }, [selectedTheme]);
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem("klie.selectedAppIcon", selectedAppIcon); }, [selectedAppIcon]);
@@ -7215,6 +7396,52 @@ function App() {
       const next = [...prev, entry];
       return next.length > 200 ? next.slice(-200) : next;
     });
+  };
+
+  const handleExportBackup = async () => {
+    if (!currentUser) return;
+    try {
+      const filePath = await save({
+        filters: [{ name: 'SQLite Database', extensions: ['db'] }],
+        defaultPath: 'klie_backup.db'
+      });
+      if (!filePath) return;
+      await invoke("export_backup", { profileId: currentUser.id, destPath: filePath });
+      alert("Backup exported successfully!");
+    } catch (err) {
+      console.error("Export backup error:", err);
+      alert(`Export failed: ${String(err)}`);
+    }
+  };
+
+  const handleImportBackup = async () => {
+    if (!currentUser) return;
+    try {
+      const confirmed = await ask(
+        "Importing a backup will overwrite your current active data. The app will reload. Are you sure you want to proceed?",
+        {
+          title: "Klie - Import Backup",
+          kind: "warning",
+        }
+      );
+      if (!confirmed) return;
+
+      const filePath = await open({
+        filters: [{ name: 'SQLite Database', extensions: ['db'] }],
+        multiple: false
+      });
+      if (!filePath) return;
+
+      const actualPath = Array.isArray(filePath) ? filePath[0] : filePath;
+      if (!actualPath) return;
+
+      await invoke("import_backup", { profileId: currentUser.id, srcPath: actualPath });
+      alert("Backup imported successfully! Reloading app...");
+      window.location.reload();
+    } catch (err) {
+      console.error("Import backup error:", err);
+      alert(`Import failed: ${String(err)}`);
+    }
   };
 
   const allCharacters = useMemo(() => {
@@ -7349,6 +7576,38 @@ function App() {
   const [integrityStatus, setIntegrityStatus] = useState<"OK" | "DEPRECATED" | "REVOKED" | "LOADING">("LOADING");
   const [integrityMessage, setIntegrityMessage] = useState("");
   const [updateUrl, setUpdateUrl] = useState("");
+
+  // Force upgrade state — set true when server says this version is deprecated
+  const [forceUpgrade, setForceUpgrade] = useState(false);
+  const [forceUpgradeUrl, setForceUpgradeUrl] = useState("https://revtech.vercel.app/download");
+  const [forceUpgradeLatest, setForceUpgradeLatest] = useState("");
+  const [forceUpgradeNotes, setForceUpgradeNotes] = useState("");
+
+  // Check version on startup — force upgrade if server says DEPRECATED
+  useEffect(() => {
+    const CURRENT_VERSION = "1.0.0";
+    async function checkVersionOnStartup() {
+      try {
+        let p = "macos";
+        if (navigator.userAgent.indexOf("Win") !== -1) p = "windows";
+        else if (navigator.userAgent.indexOf("Linux") !== -1) p = "linux";
+        else if (navigator.userAgent.indexOf("Android") !== -1) p = "android";
+        const res = await fetch(`${API_URL}/api/desktop/check-version?v=${CURRENT_VERSION}&p=${p}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && data.forceUpgrade === true) {
+          setForceUpgrade(true);
+          setForceUpgradeUrl(data.updateUrl || "https://revtech.vercel.app/download");
+          setForceUpgradeLatest(data.latestVersion || "");
+          setForceUpgradeNotes(data.message || "");
+        }
+      } catch (err) {
+        console.warn("Version check failed (network?):", err);
+      }
+    }
+    checkVersionOnStartup();
+  }, []);
+
 
   useEffect(() => {
     writeStoredSession(currentUser);
@@ -7702,7 +7961,7 @@ function App() {
       navigate("/");
     } catch (err) {
       console.error("Login failed:", err);
-      setAuthError("Unable to connect to the server. Please try again.");
+      setAuthError("Unable to connect to revtech.vercel.app. Please try again.");
     }
   };
 
@@ -7743,7 +8002,7 @@ function App() {
       navigate("/");
     } catch (err) {
       console.error("Sign up failed:", err);
-      setAuthError("Unable to connect to the server. Please try again.");
+      setAuthError("Unable to connect to revtech.vercel.app. Please try again.");
     }
   };
 
@@ -8571,6 +8830,129 @@ function App() {
   }
 
 
+  // Force upgrade screen — blocks all UI, no dismiss
+  if (forceUpgrade) {
+    return (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 99999,
+          background: "#050507",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "32px",
+          textAlign: "center",
+          fontFamily: "inherit",
+        }}
+      >
+        {/* Glow */}
+        <div style={{
+          position: "absolute",
+          top: "30%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: "500px",
+          height: "300px",
+          background: "radial-gradient(ellipse at center, rgba(220,60,60,0.15) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }} />
+
+        <div style={{ position: "relative", maxWidth: "420px", width: "100%" }}>
+          {/* Icon */}
+          <div style={{
+            width: "72px",
+            height: "72px",
+            borderRadius: "24px",
+            background: "rgba(220,50,50,0.12)",
+            border: "1px solid rgba(220,50,50,0.3)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 24px",
+            fontSize: "32px",
+          }}>
+            🚫
+          </div>
+
+          <div style={{
+            fontSize: "10px",
+            fontWeight: 700,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: "rgba(220,80,80,0.9)",
+            marginBottom: "12px",
+          }}>
+            Version No Longer Supported
+          </div>
+
+          <h1 style={{
+            fontSize: "26px",
+            fontWeight: 800,
+            color: "#ffffff",
+            marginBottom: "12px",
+            letterSpacing: "-0.02em",
+            lineHeight: 1.2,
+          }}>
+            Update Required
+          </h1>
+
+          <p style={{
+            fontSize: "13px",
+            color: "rgba(255,255,255,0.5)",
+            lineHeight: 1.7,
+            marginBottom: "8px",
+            fontWeight: 500,
+          }}>
+            {forceUpgradeNotes
+              ? forceUpgradeNotes
+              : `This version of Klie is no longer supported. Please download the latest release to continue.`}
+          </p>
+
+          {forceUpgradeLatest && (
+            <div style={{
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "rgba(255,255,255,0.3)",
+              marginBottom: "28px",
+              letterSpacing: "0.05em",
+            }}>
+              Latest version: v{forceUpgradeLatest}
+            </div>
+          )}
+
+          <button
+            onClick={() => {
+              try { (window as any).__TAURI_INTERNALS__ ? invoke("open_url", { url: forceUpgradeUrl }) : window.open(forceUpgradeUrl, "_blank"); } catch { window.open(forceUpgradeUrl, "_blank"); }
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              background: "#ffffff",
+              color: "#000000",
+              border: "none",
+              borderRadius: "100px",
+              padding: "14px 32px",
+              fontSize: "13px",
+              fontWeight: 700,
+              cursor: "pointer",
+              width: "100%",
+              transition: "opacity 0.2s",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
+            onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+          >
+            ↓ Download Latest Version
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const LayoutComponent = (deviceType === "phone" || deviceType === "tablet") ? AppLayoutMobile : AppLayout;
 
   return (
@@ -8592,6 +8974,7 @@ function App() {
       integrityStatus={integrityStatus}
       integrityMessage={integrityMessage}
       updateUrl={updateUrl}
+      deviceType={deviceType}
     >
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
@@ -8642,8 +9025,16 @@ function App() {
               setAppLanguage={setAppLanguage}
               notificationsEnabled={notificationsEnabled}
               setNotificationsEnabled={setNotificationsEnabled}
-              backupEnabled={backupEnabled}
-              setBackupEnabled={setBackupEnabled}
+              iCloudEnabled={iCloudEnabled}
+              setICloudEnabled={setICloudEnabled}
+              googleDriveEnabled={googleDriveEnabled}
+              setGoogleDriveEnabled={setGoogleDriveEnabled}
+              dropboxEnabled={dropboxEnabled}
+              setDropboxEnabled={setDropboxEnabled}
+              protonEnabled={protonEnabled}
+              setProtonEnabled={setProtonEnabled}
+              onExportBackup={handleExportBackup}
+              onImportBackup={handleImportBackup}
               nsfwMode={nsfwMode}
               setNsfwMode={setNsfwMode}
               selectedTheme={selectedTheme}

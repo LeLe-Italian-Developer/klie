@@ -11,7 +11,6 @@ type AppLayoutMobileProps = {
   onSelectNav?: (key: "home" | "chat" | "creators") => void;
   onSearch?: () => void;
   onNotifications?: () => void;
-  centerContent?: React.ReactNode;
   onUpdates?: () => void;
   onSettings?: () => void;
   onSupport?: () => void;
@@ -23,6 +22,7 @@ type AppLayoutMobileProps = {
   integrityStatus?: "OK" | "DEPRECATED" | "REVOKED" | "LOADING";
   integrityMessage?: string;
   updateUrl?: string;
+  deviceType?: "phone" | "tablet" | "desktop";
 };
 
 const navItems: { key: "home" | "chat" | "creators"; label: string; icon: React.ReactNode }[] = [
@@ -74,6 +74,7 @@ export default function AppLayoutMobile({
   integrityStatus = "OK",
   integrityMessage,
   updateUrl,
+  deviceType,
 }: AppLayoutMobileProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isClosingProfile, setIsClosingProfile] = useState(false);
@@ -230,15 +231,17 @@ export default function AppLayoutMobile({
                   } ${isClosingProfile ? "is-closing" : ""}`}
                   data-origin="bottom-left"
                 >
-                  <button
-                    className="w-full text-left px-4 py-2.5 text-sm text-text-muted hover:bg-surface-700 hover:text-text-high transition-colors cursor-pointer"
-                    onClick={() => {
-                      onUpdates?.();
-                      closeProfileDropdown();
-                    }}
-                  >
-                    Updates
-                  </button>
+                  {deviceType !== "phone" && (
+                    <button
+                      className="w-full text-left px-4 py-2.5 text-sm text-text-muted hover:bg-surface-700 hover:text-text-high transition-colors cursor-pointer"
+                      onClick={() => {
+                        onUpdates?.();
+                        closeProfileDropdown();
+                      }}
+                    >
+                      Updates
+                    </button>
+                  )}
                   <button
                     className="w-full text-left px-4 py-2.5 text-sm text-text-muted hover:bg-surface-700 hover:text-text-high transition-colors cursor-pointer"
                     onClick={() => {
@@ -248,15 +251,17 @@ export default function AppLayoutMobile({
                   >
                     Settings
                   </button>
-                  <button
-                    className="w-full text-left px-4 py-2.5 text-sm text-text-muted hover:bg-surface-700 hover:text-text-high transition-colors cursor-pointer"
-                    onClick={() => {
-                      onSupport?.();
-                      closeProfileDropdown();
-                    }}
-                  >
-                    Support Us
-                  </button>
+                  {deviceType !== "phone" && (
+                    <button
+                      className="w-full text-left px-4 py-2.5 text-sm text-text-muted hover:bg-surface-700 hover:text-text-high transition-colors cursor-pointer"
+                      onClick={() => {
+                        onSupport?.();
+                        closeProfileDropdown();
+                      }}
+                    >
+                      Support Us
+                    </button>
+                  )}
                   <hr className="my-1 border-border-subtle/20" />
                   <button
                     className="w-full text-left px-4 py-2.5 text-sm text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"

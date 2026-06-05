@@ -773,8 +773,8 @@ pub struct LocalCharacter {
 }
 
 fn get_api_base_url() -> String {
-    // Set KLIE_API_URL at build time (see .env.example)
-    option_env!("KLIE_API_URL").unwrap_or("").to_string()
+    // Obfuscated string for the production API URL
+    obfstr!("https://revtech.vercel.app").to_string()
 }
 
 #[allow(dead_code)]
@@ -1502,20 +1502,96 @@ fn set_screenshot_protection(enabled: bool, _app_handle: tauri::AppHandle) -> Re
     Ok(())
 }
 
-// ─── Advanced Sync Pilots ───────────────────────────────────────────────────
+fn sync_to_cloud_folder(provider: &str, profile_id: &str, app_handle: &tauri::AppHandle) -> Result<(), String> {
+    let home = std::env::var("HOME").map_err(|_| "Could not find Home directory".to_string())?;
+    let home_path = std::path::Path::new(&home);
+    
+    let src_path = app_handle.path().app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join(format!("profiles/{}/klie_secure.db", profile_id));
+        
+    if !src_path.exists() {
+        return Err("No active database to sync".to_string());
+    }
 
-#[tauri::command]
-async fn sync_google_drive(_app_handle: tauri::AppHandle) -> Result<(), String> {
-    // Point 19: Google Drive appDataFolder pilot
-    println!("Syncing with Google Drive (appDataFolder)...");
+    let target_dir = match provider {
+        "icloud" => home_path.join("Library/Mobile Documents/com~apple~CloudDocs/Klie"),
+        "google_drive" => {
+            let cloud_storage = home_path.join("Library/CloudStorage");
+            let mut path = home_path.join("Google Drive/Klie");
+            if cloud_storage.exists() {
+                if let Ok(entries) = std::fs::read_dir(&cloud_storage) {
+                    for entry in entries.flatten() {
+                        let name = entry.file_name().to_string_lossy().to_lowercase();
+                        if name.contains("googledrive") {
+                            path = entry.path().join("My Drive/Klie");
+                            break;
+                        }
+                    }
+                }
+            }
+            path
+        },
+        "dropbox" => {
+            let cloud_storage = home_path.join("Library/CloudStorage");
+            let mut path = home_path.join("Dropbox/Klie");
+            if cloud_storage.exists() {
+                if let Ok(entries) = std::fs::read_dir(&cloud_storage) {
+                    for entry in entries.flatten() {
+                        let name = entry.file_name().to_string_lossy().to_lowercase();
+                        if name.contains("dropbox") {
+                            path = entry.path().join("Klie");
+                            break;
+                        }
+                    }
+                }
+            }
+            path
+        },
+        "proton" => {
+            let cloud_storage = home_path.join("Library/CloudStorage");
+            let mut path = home_path.join("Proton Drive/Klie");
+            if cloud_storage.exists() {
+                if let Ok(entries) = std::fs::read_dir(&cloud_storage) {
+                    for entry in entries.flatten() {
+                        let name = entry.file_name().to_string_lossy().to_lowercase();
+                        if name.contains("proton") {
+                            path = entry.path().join("My Files/Klie");
+                            break;
+                        }
+                    }
+                }
+            }
+            path
+        },
+        _ => return Err("Unknown provider".to_string()),
+    };
+
+    std::fs::create_dir_all(&target_dir).map_err(|e| format!("Failed to create folder: {}", e))?;
+    let dest_path = target_dir.join("klie_secure.db");
+    std::fs::copy(&src_path, &dest_path).map_err(|e| format!("Failed to copy file to cloud: {}", e))?;
+    println!("Synced database to {} at {:?}", provider, dest_path);
     Ok(())
 }
 
 #[tauri::command]
-async fn sync_icloud(_app_handle: tauri::AppHandle) -> Result<(), String> {
-    // Point 20: iCloud sync pilot
-    println!("Syncing with iCloud...");
-    Ok(())
+async fn sync_google_drive(profile_id: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    sync_to_cloud_folder("google_drive", &profile_id, &app_handle)
+}
+
+#[tauri::command]
+async fn sync_icloud(profile_id: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    sync_to_cloud_folder("icloud", &profile_id, &app_handle)
+}
+
+#[tauri::command]
+async fn sync_dropbox(profile_id: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    sync_to_cloud_folder("dropbox", &profile_id, &app_handle)
+}
+
+#[tauri::command]
+async fn sync_proton(profile_id: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    sync_to_cloud_folder("proton", &profile_id, &app_handle)
 }
 
 // ─── Internet Building ──────────────────────────────────────────────────────
@@ -2123,6 +2199,40 @@ fn clear_messages(character_id: String, conversation_id: String, app_handle: tau
 #[tauri::command]
 fn set_backup_enabled(enabled: bool, state: tauri::State<AppState>) {
     *state.backup_enabled.lock().unwrap() = enabled;
+}
+
+#[tauri::command]
+fn export_backup(profile_id: String, dest_path: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    let src_path = app_handle.path().app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join(format!("profiles/{}/klie_secure.db", profile_id));
+        
+    if !src_path.exists() {
+        return Err("No active database to backup".to_string());
+    }
+    
+    std::fs::copy(&src_path, &dest_path).map_err(|e| format!("Failed to copy file: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn import_backup(profile_id: String, src_path: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    let state = app_handle.state::<AppState>();
+    {
+        let mut db_guard = state.db.lock().unwrap();
+        *db_guard = None; // Drop db connection to release file lock
+    }
+    
+    let dest_path = app_handle.path().app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join(format!("profiles/{}/klie_secure.db", profile_id));
+        
+    if let Some(parent) = dest_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    
+    std::fs::copy(&src_path, &dest_path).map_err(|e| format!("Failed to copy file: {}", e))?;
+    Ok(())
 }
 
 // ─── AI Model ─────────────────────────────────────────────────────────────────
@@ -3646,7 +3756,7 @@ async fn process_ocr_vision(
     let form = reqwest::multipart::Form::new()
         .part("image", reqwest::multipart::Part::bytes(image_data).file_name("sketch.png"));
 
-    let response = client.post(format!("{}/api/desktop/vision/ocr", get_api_base_url()))
+    let response = client.post("https://revtech.vercel.app/api/desktop/vision/ocr")
         .header("Authorization", format!("Bearer {}", session_token))
         .multipart(form)
         .send()
@@ -3675,7 +3785,7 @@ async fn send_otp(
     };
 
     let client = reqwest::Client::new();
-    let response = client.post(format!("{}/api/desktop/auth/mfa/otp/send", get_api_base_url()))
+    let response = client.post("https://revtech.vercel.app/api/desktop/auth/mfa/otp/send")
         .header("Authorization", format!("Bearer {}", session_token))
         .json(&serde_json::json!({
             "userId": user_id,
@@ -3708,7 +3818,7 @@ async fn verify_otp(
     };
 
     let client = reqwest::Client::new();
-    let response = client.post(format!("{}/api/desktop/auth/mfa/otp/verify", get_api_base_url()))
+    let response = client.post("https://revtech.vercel.app/api/desktop/auth/mfa/otp/verify")
         .header("Authorization", format!("Bearer {}", session_token))
         .json(&serde_json::json!({
             "userId": user_id,
@@ -3742,7 +3852,7 @@ async fn get_cloud_token(
     };
 
     let client = reqwest::Client::new();
-    let response = client.get(format!("{}/api/desktop/cloud/token?userId={}&provider={}", get_api_base_url(), user_id, provider))
+    let response = client.get(format!("https://revtech.vercel.app/api/desktop/cloud/token?userId={}&provider={}", user_id, provider))
         .header("Authorization", format!("Bearer {}", session_token))
         .send()
         .await
@@ -3758,7 +3868,7 @@ async fn get_cloud_token(
 #[tauri::command]
 async fn get_ui_config(_state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
     let client = reqwest::Client::new();
-    let response = client.get(format!("{}/api/desktop/config/ui", get_api_base_url()))
+    let response = client.get("https://revtech.vercel.app/api/desktop/config/ui")
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -3864,6 +3974,8 @@ pub fn run() {
             save_message,
             clear_messages,
             set_backup_enabled,
+            export_backup,
+            import_backup,
             add_local_memories,
             update_local_memories,
             remove_local_memories,
@@ -3900,6 +4012,8 @@ pub fn run() {
             set_screenshot_protection,
             sync_google_drive,
             sync_icloud,
+            sync_dropbox,
+            sync_proton,
             send_internet_webhook,
             process_ocr_vision,
             send_otp,
@@ -3950,7 +4064,7 @@ pub fn run() {
 
                         // Only hit the network when backup is ON and there are failures to retry.
                         let client = reqwest::Client::new();
-                        if client.get(format!("{}/api/v1/app-status", get_api_base_url())).send().await.is_err() {
+                        if client.get("https://revtech.vercel.app/api/v1/app-status").send().await.is_err() {
                             println!("Queue: App is offline, skipping periodic sync check.");
                             continue;
                         }
@@ -3982,7 +4096,7 @@ pub fn run() {
                 tauri::async_runtime::spawn(async move {
                     // ─── Point 100: Final Kill-Switch Check ───
                     let client = reqwest::Client::new();
-                    if let Ok(resp) = client.get(format!("{}/api/v1/app-status", get_api_base_url())).send().await {
+                    if let Ok(resp) = client.get("https://revtech.vercel.app/api/v1/app-status").send().await {
                         if let Ok(json) = resp.json::<serde_json::Value>().await {
                             if json["status"] == "BRICKED" || json["killSwitch"] == true {
                                 println!("CRITICAL: App remotely bricked by server.");
