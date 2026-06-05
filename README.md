@@ -31,7 +31,7 @@
 
 ## 📦 Download
 
-Pre-built binaries are available in [Releases](https://github.com/gabrielegiannino/klie/releases):
+Pre-built binaries are available in [Releases](https://github.com/LeLe-Italian-Developer/klie/releases):
 
 | Platform | Format |
 |---|---|
@@ -40,44 +40,6 @@ Pre-built binaries are available in [Releases](https://github.com/gabrielegianni
 | Windows | `.exe` NSIS installer |
 | Linux | `.AppImage` |
 | Android | `.apk` |
-
----
-
-## 🏗 Build from Source
-
-### Prerequisites
-
-- [Node.js 20+](https://nodejs.org)
-- [pnpm 10+](https://pnpm.io)
-- [Rust stable](https://rustup.rs)
-- [Tauri CLI v2](https://tauri.app/start/prerequisites/)
-
-### Setup
-
-```bash
-# Clone the repo
-git clone https://github.com/gabrielegiannino/klie.git
-cd klie
-
-# Copy env template
-cp .env.example apps/desktop/.env
-
-# Edit apps/desktop/.env and set VITE_API_URL
-
-# Install dependencies
-pnpm install
-
-# Start dev server
-cd apps/desktop
-pnpm tauri dev
-```
-
-### Build release
-
-```bash
-cd apps/desktop
-pnpm tauri build
-```
 
 ---
 
@@ -99,7 +61,7 @@ klie/
 
 ## 🐛 Issues
 
-Found a bug? [Open an issue](https://github.com/gabrielegiannino/klie/issues/new/choose).
+Found a bug? [Open an issue](https://github.com/LeLe-Italian-Developer/klie/issues/new/choose).
 
 > **Note:** This repository accepts issues only. Pull requests are not accepted.
 
@@ -116,3 +78,10 @@ See [SECURITY.md](./SECURITY.md) to report vulnerabilities responsibly.
 This project is licensed under the **GNU General Public License v3.0** — see [LICENSE](./LICENSE) for details.
 
 GPL v3 guarantees that any distributed modifications must remain open source under the same license.
+
+---
+
+## 📋 Legal
+
+- [End User License Agreement & Terms of Service](./EULA.md)
+- [Privacy Policy](./PRIVACY_POLICY.md)
