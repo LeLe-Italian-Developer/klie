@@ -11,6 +11,7 @@ type AppLayoutMobileProps = {
   onSelectNav?: (key: "home" | "chat" | "creators") => void;
   onSearch?: () => void;
   onNotifications?: () => void;
+  centerContent?: React.ReactNode;
   onUpdates?: () => void;
   onSettings?: () => void;
   onSupport?: () => void;
