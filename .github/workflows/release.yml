@@ -1,0 +1,311 @@
+name: tauri-release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  # ──────────────────────────────────────────
+  # macOS – Apple Silicon (aarch64) DMG
+  # ──────────────────────────────────────────
+  build-macos-arm:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/desktop/src-tauri/target
+          key: macos-arm-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: macos-arm-cargo-
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install deps
+        run: pnpm install
+        working-directory: .
+
+      - name: Build – macOS Apple Silicon
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          KLIE_API_URL: ${{ secrets.KLIE_API_URL }}
+          KLIE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.KLIE_STRIPE_PUBLISHABLE_KEY }}
+        run: pnpm tauri build --target aarch64-apple-darwin
+        working-directory: apps/desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klie-macos-arm64
+          path: apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+
+  # ──────────────────────────────────────────
+  # macOS – Intel (x86_64) DMG
+  # ──────────────────────────────────────────
+  build-macos-intel:
+    runs-on: macos-13   # last Intel runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/desktop/src-tauri/target
+          key: macos-intel-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: macos-intel-cargo-
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install deps
+        run: pnpm install
+
+      - name: Build – macOS Intel
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          KLIE_API_URL: ${{ secrets.KLIE_API_URL }}
+          KLIE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.KLIE_STRIPE_PUBLISHABLE_KEY }}
+        run: pnpm tauri build --target x86_64-apple-darwin
+        working-directory: apps/desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klie-macos-x64
+          path: apps/desktop/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+
+  # ──────────────────────────────────────────
+  # Windows – x64 NSIS Installer (.exe)
+  # ──────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/desktop/src-tauri/target
+          key: windows-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: windows-cargo-
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install deps
+        run: pnpm install
+
+      - name: Build – Windows x64 NSIS
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          KLIE_API_URL: ${{ secrets.KLIE_API_URL }}
+          KLIE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.KLIE_STRIPE_PUBLISHABLE_KEY }}
+        run: pnpm tauri build --target x86_64-pc-windows-msvc --bundles nsis
+        working-directory: apps/desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klie-windows-x64
+          path: |
+            apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+
+  # ──────────────────────────────────────────
+  # Linux – AppImage (all distros)
+  # ──────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Install Linux build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libfuse2
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/desktop/src-tauri/target
+          key: linux-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: linux-cargo-
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install deps
+        run: pnpm install
+
+      - name: Build – Linux AppImage
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          KLIE_API_URL: ${{ secrets.KLIE_API_URL }}
+          KLIE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.KLIE_STRIPE_PUBLISHABLE_KEY }}
+        run: pnpm tauri build --target x86_64-unknown-linux-gnu --bundles appimage
+        working-directory: apps/desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klie-linux-appimage
+          path: apps/desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
+
+  # ──────────────────────────────────────────
+  # Android – APK (debug + release)
+  # ──────────────────────────────────────────
+  build-android:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: |
+            aarch64-linux-android
+            armv7-linux-androideabi
+            i686-linux-android
+            x86_64-linux-android
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        run: |
+          sdkmanager "ndk;27.0.11902837"
+
+      - name: Install Linux build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/desktop/src-tauri/target
+          key: android-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: android-cargo-
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install deps
+        run: pnpm install
+
+      - name: Init Tauri Android
+        run: pnpm tauri android init
+        working-directory: apps/desktop
+        env:
+          NDK_HOME: $ANDROID_NDK_HOME
+
+      - name: Build – Android APK
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          KLIE_API_URL: ${{ secrets.KLIE_API_URL }}
+          KLIE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.KLIE_STRIPE_PUBLISHABLE_KEY }}
+          NDK_HOME: $ANDROID_NDK_HOME
+          ANDROID_KEY_STORE: ${{ secrets.ANDROID_KEY_STORE }}
+          ANDROID_KEY_STORE_PASSWORD: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: pnpm tauri android build --apk
+        working-directory: apps/desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klie-android-apk
+          path: |
+            apps/desktop/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+
+  # ──────────────────────────────────────────
+  # GitHub Release – collect into "Klie Releases" folder
+  # ──────────────────────────────────────────
+  release:
+    needs:
+      - build-macos-arm
+      - build-macos-intel
+      - build-windows
+      - build-linux
+      - build-android
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: "Klie Releases"
+
+      - name: List release files
+        run: find "Klie Releases" -type f | sort
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Klie ${{ github.ref_name }}"
+          files: "Klie Releases/**/*"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
