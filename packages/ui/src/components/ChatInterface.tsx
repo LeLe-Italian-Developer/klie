@@ -76,6 +76,8 @@ type ChatInterfaceProps = {
   onCreateCheckpoint?: (name: string) => Promise<void> | void;
   onRestoreCheckpoint?: (id: string) => Promise<void> | void;
   onDeleteCheckpoint?: (id: string) => Promise<void> | void;
+  onSelectCreator?: (creator: any) => void;
+  creators?: any[];
 };
 
 type MultiCharacterForm = {
@@ -399,6 +401,8 @@ export default function ChatInterface({
   onCreateCheckpoint,
   onRestoreCheckpoint,
   onDeleteCheckpoint,
+  onSelectCreator,
+  creators = [],
 }: ChatInterfaceProps) {
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>(initialMessages);
   const [newCheckpointName, setNewCheckpointName] = useState("");
@@ -478,6 +482,7 @@ export default function ChatInterface({
   const [behaviorPrompt, setBehaviorPrompt] = useState("");
   const [lastAiTag, setLastAiTag] = useState<string | null>(null);
   const [chatSettingsOpen, setChatSettingsOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [chatSettingsTab, setChatSettingsTab] = useState<"multi" | "memory" | "world" | "character" | "internet" | "ai" | "report" | "checkpoints">("multi");
   const [mobileTabDropdownOpen, setMobileTabDropdownOpen] = useState(false);
   const [addingType, setAddingType] = useState<"memory" | "world" | "checkpoint" | null>(null);
@@ -688,6 +693,18 @@ export default function ChatInterface({
     if (!activeBot) return null;
     return allCharacters.find((c: any) => c.id === activeBot.id) || null;
   }, [activeBot, allCharacters]);
+
+  const activeCreator = useMemo(() => {
+    if (!activeCharDetails || !creators) return null;
+    return creators.find((c: any) => c.id === activeCharDetails.creatorId || c.displayName === activeCharDetails.creatorName) || {
+      id: activeCharDetails.creatorId || "placeholder",
+      displayName: activeCharDetails.creatorName || "Unknown Creator",
+      handle: (activeCharDetails.creatorName || "creator").toLowerCase().replace(/\s+/g, ""),
+      totalPoints: 0,
+      avatarUrl: `https://ui-avatars.com/api/?name=${activeCharDetails.creatorName || "Creator"}&background=random`,
+      rank: 0
+    };
+  }, [activeCharDetails, creators]);
 
   // ─── Discord Live Bot Status Sync (Global Worker) ───
   const [discordBotStatus, setDiscordBotStatus] = useState<"disconnected" | "connecting" | "connected" | "error">(() => {
@@ -1498,17 +1515,22 @@ export default function ChatInterface({
                     >
                       <BackIcon />
                     </button>
-                    <div className="h-11 w-11 flex-shrink-0 overflow-hidden rounded-full ring-1 ring-white/10">
-                      {activeBot?.avatarUrl ? (
-                        <img src={activeBot.avatarUrl} alt={activeName} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-white/10 text-xs font-semibold text-white">
-                          {activeName.slice(0, 2).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-lg font-semibold tracking-[-0.02em] text-white">{activeName}</div>
+                    <div 
+                      onClick={() => setDetailsOpen(!detailsOpen)}
+                      className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition select-none min-w-0"
+                    >
+                      <div className="h-11 w-11 flex-shrink-0 overflow-hidden rounded-full ring-1 ring-white/10">
+                        {activeBot?.avatarUrl ? (
+                          <img src={activeBot.avatarUrl} alt={activeName} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center bg-white/10 text-xs font-semibold text-white">
+                            {activeName.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-lg font-semibold tracking-[-0.02em] text-white">{activeName}</div>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1523,6 +1545,61 @@ export default function ChatInterface({
                     </button>
                   </div>
                 </header>
+
+                {detailsOpen && (
+                  <>
+                    <div className="absolute inset-0 z-28 bg-black/40 backdrop-blur-sm" onClick={() => setDetailsOpen(false)} />
+                    <div className="absolute top-20 left-0 right-0 z-30 bg-surface-950/95 border-b border-white/[0.08] p-6 backdrop-blur-2xl animate-in slide-in-from-top-5 duration-300 flex flex-col items-center justify-center text-center gap-4 shadow-2xl">
+                      <div className="relative flex flex-col items-center gap-3.5 w-full max-w-sm">
+                        {/* Big Avatar Image */}
+                        <div className="h-24 w-24 overflow-hidden rounded-full ring-2 ring-white/10 shadow-lg">
+                          {activeBot?.avatarUrl ? (
+                            <img src={activeBot.avatarUrl} alt={activeName} className="h-full w-full object-cover animate-in fade-in zoom-in-95 duration-200" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-white/10 text-2xl font-bold text-white">
+                              {activeName.slice(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Name and Creator */}
+                        <div>
+                          <h3 className="text-base font-bold text-white tracking-tight">{activeName}</h3>
+                          {activeCharDetails?.creatorName && (
+                            <div className="text-xs text-text-muted mt-1.5 flex items-center justify-center gap-1.5">
+                              <span>by</span>
+                              {onSelectCreator && activeCreator ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onSelectCreator(activeCreator);
+                                    setDetailsOpen(false);
+                                  }}
+                                  className="inline-flex items-center gap-1 bg-white/[0.04] border border-white/5 hover:border-white/10 hover:bg-white/10 px-2 py-1 rounded-lg text-primary-400 font-bold hover:underline cursor-pointer transition"
+                                >
+                                  <span className="truncate">{activeCharDetails.creatorName}</span>
+                                </button>
+                              ) : (
+                                <span className="font-semibold text-text-high">{activeCharDetails.creatorName}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Close button */}
+                        <button
+                          type="button"
+                          onClick={() => setDetailsOpen(false)}
+                          className="absolute -top-1 -right-1 p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-text-subtle hover:text-white transition cursor-pointer"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <div className="klie-chat-message-area flex-1 overflow-y-auto px-4 pb-28 pt-24 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
                   <div className="flex w-full flex-col gap-4">

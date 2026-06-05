@@ -1175,7 +1175,9 @@ function ChatView({
   localCharacters,
   setLocalCharacters,
   onDownloadCharacter,
-  onDeleteDownloadedCharacter
+  onDeleteDownloadedCharacter,
+  onSelectCreator,
+  creators = []
 }: {
   characters: Character[],
   archivedOnly?: boolean,
@@ -1190,7 +1192,9 @@ function ChatView({
   localCharacters: any[],
   setLocalCharacters: React.Dispatch<React.SetStateAction<any[]>>,
   onDownloadCharacter: (charId: string) => Promise<void>,
-  onDeleteDownloadedCharacter: (charId: string) => Promise<void>
+  onDeleteDownloadedCharacter: (charId: string) => Promise<void>,
+  onSelectCreator?: (creator: Creator) => void,
+  creators?: Creator[]
 }) {
   const { id: conversationId } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -1762,6 +1766,8 @@ function ChatView({
         onNewChat={() => navigate("/search")}
         allCharacters={allCharacters}
         currentUser={currentUser}
+        onSelectCreator={onSelectCreator}
+        creators={creators}
         onRunLocalInference={async (characterId, conversationId, userMessage) => {
           const dummyChan = new Channel<string>();
           dummyChan.onmessage = () => { };
@@ -8604,10 +8610,10 @@ function App() {
               />
             }
           />
-          <Route path="/chat" element={<ChatView characters={allCharacters} currentUser={currentUser} conversations={conversations} setConversations={setConversations} allCharacters={allCharacters} onIncrementPoints={handleIncrementPoints} setCharacters={setCharacters} onSelectCharacter={handleSelectCharacter} localCharacters={localCharacters} setLocalCharacters={setLocalCharacters} onDownloadCharacter={handleDownloadCharacter} onDeleteDownloadedCharacter={handleDeleteDownloadedCharacter} />} />
-          <Route path="/chat/archived" element={<ChatView characters={allCharacters} archivedOnly currentUser={currentUser} conversations={conversations} setConversations={setConversations} allCharacters={allCharacters} onIncrementPoints={handleIncrementPoints} setCharacters={setCharacters} onSelectCharacter={handleSelectCharacter} localCharacters={localCharacters} setLocalCharacters={setLocalCharacters} onDownloadCharacter={handleDownloadCharacter} onDeleteDownloadedCharacter={handleDeleteDownloadedCharacter} />} />
-          <Route path="/chat/library" element={<ChatView characters={allCharacters} libraryOnly currentUser={currentUser} conversations={conversations} setConversations={setConversations} allCharacters={allCharacters} onIncrementPoints={handleIncrementPoints} setCharacters={setCharacters} onSelectCharacter={handleSelectCharacter} localCharacters={localCharacters} setLocalCharacters={setLocalCharacters} onDownloadCharacter={handleDownloadCharacter} onDeleteDownloadedCharacter={handleDeleteDownloadedCharacter} />} />
-          <Route path="/chat/:id" element={<ChatView characters={allCharacters} currentUser={currentUser} conversations={conversations} setConversations={setConversations} allCharacters={allCharacters} onIncrementPoints={handleIncrementPoints} setCharacters={setCharacters} onSelectCharacter={handleSelectCharacter} localCharacters={localCharacters} setLocalCharacters={setLocalCharacters} onDownloadCharacter={handleDownloadCharacter} onDeleteDownloadedCharacter={handleDeleteDownloadedCharacter} />} />
+          <Route path="/chat" element={<ChatView characters={allCharacters} currentUser={currentUser} conversations={conversations} setConversations={setConversations} allCharacters={allCharacters} onIncrementPoints={handleIncrementPoints} setCharacters={setCharacters} onSelectCharacter={handleSelectCharacter} localCharacters={localCharacters} setLocalCharacters={setLocalCharacters} onDownloadCharacter={handleDownloadCharacter} onDeleteDownloadedCharacter={handleDeleteDownloadedCharacter} onSelectCreator={setActiveCreatorProfile} creators={displayCreators} />} />
+          <Route path="/chat/archived" element={<ChatView characters={allCharacters} archivedOnly currentUser={currentUser} conversations={conversations} setConversations={setConversations} allCharacters={allCharacters} onIncrementPoints={handleIncrementPoints} setCharacters={setCharacters} onSelectCharacter={handleSelectCharacter} localCharacters={localCharacters} setLocalCharacters={setLocalCharacters} onDownloadCharacter={handleDownloadCharacter} onDeleteDownloadedCharacter={handleDeleteDownloadedCharacter} onSelectCreator={setActiveCreatorProfile} creators={displayCreators} />} />
+          <Route path="/chat/library" element={<ChatView characters={allCharacters} libraryOnly currentUser={currentUser} conversations={conversations} setConversations={setConversations} allCharacters={allCharacters} onIncrementPoints={handleIncrementPoints} setCharacters={setCharacters} onSelectCharacter={handleSelectCharacter} localCharacters={localCharacters} setLocalCharacters={setLocalCharacters} onDownloadCharacter={handleDownloadCharacter} onDeleteDownloadedCharacter={handleDeleteDownloadedCharacter} onSelectCreator={setActiveCreatorProfile} creators={displayCreators} />} />
+          <Route path="/chat/:id" element={<ChatView characters={allCharacters} currentUser={currentUser} conversations={conversations} setConversations={setConversations} allCharacters={allCharacters} onIncrementPoints={handleIncrementPoints} setCharacters={setCharacters} onSelectCharacter={handleSelectCharacter} localCharacters={localCharacters} setLocalCharacters={setLocalCharacters} onDownloadCharacter={handleDownloadCharacter} onDeleteDownloadedCharacter={handleDeleteDownloadedCharacter} onSelectCreator={setActiveCreatorProfile} creators={displayCreators} />} />
           <Route
             path="/creators"
             element={
