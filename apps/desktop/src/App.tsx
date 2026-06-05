@@ -1092,7 +1092,7 @@ function HomeView({
 
       <section className="space-y-5">
         <h2 className="section-header font-display text-xl font-black text-text-high tracking-tight">Top Creators</h2>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-3">
           {visibleCreators.length === 0 ? (
             Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="shimmer-skeleton h-[110px] w-full rounded-2xl" />
