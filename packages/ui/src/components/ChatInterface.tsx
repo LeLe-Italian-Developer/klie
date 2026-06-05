@@ -231,6 +231,15 @@ function SendIcon() {
   );
 }
 
+function SkipIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
+      <path d="M6 18V6l8.5 6L6 18z" fill="currentColor" />
+      <rect x="16" y="6" width="2" height="12" fill="currentColor" />
+    </svg>
+  );
+}
+
 function BackIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
@@ -469,7 +478,7 @@ export default function ChatInterface({
   const [behaviorPrompt, setBehaviorPrompt] = useState("");
   const [lastAiTag, setLastAiTag] = useState<string | null>(null);
   const [chatSettingsOpen, setChatSettingsOpen] = useState(false);
-  const [chatSettingsTab, setChatSettingsTab] = useState<"multi" | "memory" | "world" | "character" | "internet" | "discord" | "report" | "checkpoints">("multi");
+  const [chatSettingsTab, setChatSettingsTab] = useState<"multi" | "memory" | "world" | "character" | "internet" | "ai" | "report" | "checkpoints">("multi");
   const [mobileTabDropdownOpen, setMobileTabDropdownOpen] = useState(false);
   const [addingType, setAddingType] = useState<"memory" | "world" | "checkpoint" | null>(null);
   const [showAddOptions, setShowAddOptions] = useState(false);
@@ -1623,27 +1632,14 @@ export default function ChatInterface({
                       className="max-h-32 min-h-[48px] flex-1 resize-none bg-transparent px-3 py-3 text-sm text-text-high outline-none placeholder:text-text-subtle"
                     />
                     
-                    {/* Style Selector */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const styles: ('normale' | 'breve' | 'dettagliato')[] = ['normale', 'breve', 'dettagliato'];
-                        const currentIndex = styles.indexOf(responseStyle);
-                        const nextIndex = (currentIndex + 1) % styles.length;
-                        setResponseStyle(styles[nextIndex]);
-                      }}
-                      className="flex h-11 px-3 flex-shrink-0 items-center justify-center rounded-full bg-white/5 text-xs font-semibold text-text-high hover:bg-white/10 transition shadow-lg cursor-pointer"
-                    >
-                      {responseStyle === 'normale' ? 'Normal' : responseStyle === 'breve' ? 'Brief' : 'Detailed'}
-                    </button>
-
                     <motion.button
                       whileHover={hasHover ? { scale: 1.08 } : undefined}
                       whileTap={{ scale: 0.92 }}
                       onClick={() => onSend?.("[SKIP]")}
-                      className="flex h-11 px-4 flex-shrink-0 items-center justify-center rounded-full bg-surface-800 text-white transition-colors shadow-lg cursor-pointer text-xs font-semibold hover:bg-surface-700"
+                      className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-surface-800 text-white transition-colors shadow-lg cursor-pointer hover:bg-surface-700"
+                      title="Skip"
                     >
-                      Skip
+                      <SkipIcon />
                     </motion.button>
                     <motion.button
                       whileHover={hasHover ? { scale: 1.08 } : undefined}
@@ -1728,7 +1724,7 @@ export default function ChatInterface({
                   <span>
                     {chatSettingsTab === "multi" && "Personas"}
                     {chatSettingsTab === "memory" && "Memory & Lore"}
-                    {chatSettingsTab === "discord" && "Discord"}
+                    {chatSettingsTab === "ai" && "AI Settings"}
                     {chatSettingsTab === "report" && "Report"}
                   </span>
                   <svg className={`w-4 h-4 text-text-subtle transition-transform duration-200 ${mobileTabDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1743,7 +1739,7 @@ export default function ChatInterface({
                       {[
                         { value: "multi", label: "Personas" },
                         { value: "memory", label: "Memory & Lore" },
-                        { value: "discord", label: "Discord" },
+                        { value: "ai", label: "AI Settings" },
                         { value: "report", label: "Report" }
                       ].map((item) => (
                         <button
@@ -1789,12 +1785,12 @@ export default function ChatInterface({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setChatSettingsTab("discord")}
+                  onClick={() => setChatSettingsTab("ai")}
                   className={`flex-1 rounded-xl py-2 text-center text-xs font-bold tracking-tight transition-all duration-200 ${
-                    chatSettingsTab === "discord" ? "bg-white text-black shadow-lg scale-[1.02]" : "text-text-muted hover:text-white hover:bg-white/[0.03]"
+                    chatSettingsTab === "ai" ? "bg-white text-black shadow-lg scale-[1.02]" : "text-text-muted hover:text-white hover:bg-white/[0.03]"
                   }`}
                 >
-                  Discord
+                  AI Settings
                 </button>
                 <button
                   type="button"
@@ -2496,64 +2492,34 @@ export default function ChatInterface({
                 </div>
               )}
 
-              {/* TAB 3: DISCORD LIVE BOT HOST */}
-              {chatSettingsTab === "discord" && (
+              {/* TAB 3: AI SETTINGS */}
+              {chatSettingsTab === "ai" && (
                 <div className="space-y-4 text-left">
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs font-semibold text-white/50 uppercase tracking-wider">Discord Local Integration</div>
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.03] border border-white/[0.05]">
-                      <span className={`w-2 h-2 rounded-full ${
-                        discordBotStatus === "connected" ? "bg-green-400 animate-pulse" :
-                        discordBotStatus === "connecting" ? "bg-yellow-400 animate-pulse" :
-                        discordBotStatus === "error" ? "bg-red-500" : "bg-neutral-500"
-                      }`} />
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-white/80">
-                        {discordBotStatus === "connected" ? "Running Locally" :
-                         discordBotStatus === "connecting" ? "Connecting..." :
-                         discordBotStatus === "error" ? "Error" : "Offline"}
-                      </span>
+                  <div>
+                    <div className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Conversation Detail Level</div>
+                    <p className="text-[11px] text-text-muted mb-4 leading-relaxed">
+                      Choose the length and level of detail for the chatbot's responses.
+                    </p>
+                    <div className="grid grid-cols-3 gap-2 bg-white/[0.03] p-1 rounded-2xl border border-white/[0.06]">
+                      {(["normale", "breve", "dettagliato"] as const).map((style) => {
+                        const active = responseStyle === style;
+                        const label = style === "normale" ? "Normal" : style === "breve" ? "Brief" : "Detailed";
+                        const desc = style === "normale" ? "Standard length" : style === "breve" ? "Shorter replies" : "Rich detail";
+                        return (
+                          <button
+                            key={style}
+                            type="button"
+                            onClick={() => setResponseStyle(style)}
+                            className={`rounded-xl py-3 px-2 text-center transition-all duration-200 cursor-pointer ${
+                              active ? "bg-white text-black shadow-lg scale-[1.01]" : "text-text-muted hover:text-white hover:bg-white/[0.03]"
+                            }`}
+                          >
+                            <div className="text-xs font-bold">{label}</div>
+                            <div className={`text-[9px] mt-0.5 ${active ? "text-neutral-500" : "text-text-subtle"}`}>{desc}</div>
+                          </button>
+                        );
+                      })}
                     </div>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
-                    <div className="flex items-center justify-between py-1">
-                      <div className="space-y-1 pr-4">
-                        <div className="text-xs font-semibold text-white">Attiva Chatbot su Discord</div>
-                        <p className="text-[10px] text-text-subtle leading-relaxed">
-                          Se abilitato, questo specifico chatbot risponderà ai messaggi sul tuo server di Discord e salverà la cronologia in questa chat.
-                        </p>
-                      </div>
-                      
-                      <button
-                        type="button"
-                        onClick={() => handleToggleDiscord(!discordEnabled)}
-                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
-                          discordEnabled ? "bg-[#5865F2]" : "bg-white/10"
-                        }`}
-                      >
-                        <span
-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            discordEnabled ? "translate-x-5" : "translate-x-0"
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    {discordBotError && (
-                      <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[11px] leading-relaxed">
-                        {discordBotError}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-3 rounded-2xl bg-white/[0.01] border border-white/[0.02] space-y-2">
-                    <div className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Come funziona</div>
-                    <ul className="space-y-1.5 text-[10px] text-text-subtle list-disc list-inside leading-relaxed">
-                      <li>La connessione a Discord è attiva automaticamente in background.</li>
-                      <li>Di default, ogni nuova chat ha l'integrazione disattivata (OFF).</li>
-                      <li>Puoi attivare l'integrazione solo per le chat che desideri collegare a Discord.</li>
-                      <li>Il bot risponderà usando i dati locali e il modello IA Qwen-3 sul tuo PC.</li>
-                    </ul>
                   </div>
                 </div>
               )}
