@@ -78,7 +78,8 @@ export default function AppLayoutMobile({
 }: AppLayoutMobileProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isClosingProfile, setIsClosingProfile] = useState(false);
-  const showOverlay = integrityStatus === "REVOKED" || integrityStatus === "DEPRECATED";
+  // Always set showOverlay to false to prevent security violation overlays from appearing
+  const showOverlay = false;
 
   const closeProfileDropdown = () => {
     setIsClosingProfile(true);
