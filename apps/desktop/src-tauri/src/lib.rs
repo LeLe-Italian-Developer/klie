@@ -1,4 +1,3 @@
-use keyring::Entry;
 use rand::{Rng, thread_rng};
 // use zeroize::Zeroize;
 use bip39::Mnemonic;
@@ -32,31 +31,13 @@ pub struct AppState {
 // ─── Security Helpers ────────────────────────────────────────────────────────
 
 fn get_db_key(profile_id: &str) -> Result<String, String> {
-    let service = "Klie_Security_Service";
-    let account = format!("Klie_Key_{}", profile_id);
-    let entry = Entry::new(service, &account).map_err(|e| e.to_string())?;
-
-    match entry.get_password() {
-        Ok(key) => {
-            println!("get_db_key: Successfully retrieved key from keyring for profile: {}", profile_id);
-            Ok(key)
-        },
-        Err(e) => {
-            println!("get_db_key: Key not found for profile: {}. Error: {}. Generating new key.", profile_id, e);
-            // Generate a new 64-character hex key
-            let new_key: String = thread_rng()
-                .sample_iter(&rand::distributions::Alphanumeric)
-                .take(64)
-                .map(char::from)
-                .collect();
-            entry.set_password(&new_key).map_err(|e| {
-                eprintln!("get_db_key: Failed to set new password in keyring: {}", e);
-                e.to_string()
-            })?;
-            println!("get_db_key: Successfully set new key in keyring.");
-            Ok(new_key)
-        }
-    }
+    let device_id = get_device_id()?;
+    let mut hasher = Sha256::new();
+    hasher.update(device_id.as_bytes());
+    hasher.update(profile_id.as_bytes());
+    hasher.update(obfstr!("Klie_Database_Secure_Salt_v2").as_bytes());
+    let result = hasher.finalize();
+    Ok(format!("{:x}", result))
 }
 
 // ─── DB helpers ───────────────────────────────────────────────────────────────
