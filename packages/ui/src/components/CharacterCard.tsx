@@ -71,13 +71,18 @@ const CharacterCard: React.FC<CharacterCardProps> = ({
       />
 
       {/* Gradient overlay with stronger bottom fade */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-transparent transition-opacity duration-300 group-hover:opacity-95" />
+      <div 
+        className="absolute inset-0 transition-opacity duration-300 group-hover:opacity-95" 
+        style={{
+          backgroundImage: "linear-gradient(to top, var(--card-gradient-from, rgba(0,0,0,0.95)) 0%, var(--card-gradient-via, rgba(0,0,0,0.3)) 50%, var(--card-gradient-to, transparent) 100%)"
+        }}
+      />
 
       {/* Hover border glow effect */}
       <div className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none ring-1 ring-inset ring-white/10" />
 
       {/* Bottom info directly on gradient overlay */}
-      <div className="absolute inset-0 p-3.5 flex flex-col justify-end text-white text-left">
+      <div className="absolute inset-0 p-3.5 flex flex-col justify-end text-left">
         <div className="text-sm font-bold text-text-high truncate">{name}</div>
         <div className="text-[10px] text-text-muted truncate mt-0.5">By {creatorName || "Unknown"}</div>
       </div>

@@ -109,7 +109,7 @@ export default function SearchGrid({
     >
       {data.map((item) => {
         const base =
-          "flex h-full w-full items-center justify-center text-center text-sm font-medium text-text-high bg-surface-100/20 ring-1 ring-border-subtle/25 backdrop-blur-md shadow-inner";
+          "flex h-full w-full items-center justify-center text-center text-sm font-medium text-text-high bg-surface-800/40 ring-1 ring-border-subtle/15 backdrop-blur-md shadow-inner transition-all duration-300 hover:scale-[1.02] hover:border-border-subtle/30";
         const col = item.colSpan ?? 1;
         const shape =
           item.shape === "circle"

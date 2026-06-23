@@ -4746,13 +4746,13 @@ function SettingsPage({ isSafe: _isSafe, setIsSafe: _setIsSafe, appLanguage, set
           <div className="mt-3 flex gap-2">
             <button
               onClick={onExportBackup}
-              className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-surface-900 border border-border-subtle/30 text-white hover:bg-surface-700 transition cursor-pointer"
+              className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-surface-900 border border-border-subtle/30 text-text-high hover:bg-surface-800 transition cursor-pointer"
             >
               Export Data
             </button>
             <button
               onClick={onImportBackup}
-              className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-surface-900 border border-border-subtle/30 text-white hover:bg-surface-700 transition cursor-pointer"
+              className="flex-1 px-3 py-2 text-xs font-semibold rounded-lg bg-surface-900 border border-border-subtle/30 text-text-high hover:bg-surface-800 transition cursor-pointer"
             >
               Import Data
             </button>
@@ -5188,7 +5188,7 @@ function SupportPage() {
     {
       name: "Discord",
       desc: "Join our community server for discussions, support, and updates.",
-      url: "https://discord.gg/",
+      url: "https://discord.gg/2GsxEEbxN5",
       icon: (
         <svg className="h-7 w-7 text-[#5865F2]" viewBox="0 0 24 24" fill="currentColor">
           <path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 00-.041-.106 13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
@@ -5210,7 +5210,7 @@ function SupportPage() {
       desc: "View the source code, report issues, and contribute to the project.",
       url: "https://github.com/LeLe-Italian-Developer/klie.git",
       icon: (
-        <svg className="h-7 w-7 text-[#F0F6FC]" viewBox="0 0 24 24" fill="currentColor">
+        <svg className="h-7 w-7 text-text-high" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" />
         </svg>
       ),
@@ -5611,7 +5611,12 @@ function SearchView({
                         alt={char.name}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-transparent p-3.5 flex flex-col justify-end">
+                      <div 
+                        className="absolute inset-0 p-3.5 flex flex-col justify-end"
+                        style={{
+                          backgroundImage: "linear-gradient(to top, var(--card-gradient-from, rgba(0,0,0,0.95)) 0%, var(--card-gradient-via, rgba(0,0,0,0.3)) 50%, var(--card-gradient-to, transparent) 100%)"
+                        }}
+                      >
                         <div className="text-sm font-bold text-text-high truncate">{char.name}</div>
                         <div className="text-[10px] text-text-muted truncate mt-0.5">By {char.creatorName || "Unknown"}</div>
                       </div>
@@ -5630,7 +5635,12 @@ function SearchView({
                       onClick={() => onSelectCreator(creator)}
                       className="group relative aspect-square cursor-pointer overflow-hidden rounded-2xl bg-purple-950/20 border border-purple-500/20 transition duration-300 hover:border-purple-500/50 hover:shadow-[0_0_20px_rgba(168,85,247,0.15)]"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-t from-purple-950/90 via-surface-900/20 to-transparent p-4 flex flex-col items-center justify-center gap-3">
+                      <div 
+                        className="absolute inset-0 p-4 flex flex-col items-center justify-center gap-3"
+                        style={{
+                          backgroundImage: "linear-gradient(to top, var(--creator-gradient-from, rgba(88,28,135,0.9)) 0%, var(--creator-gradient-via, rgba(0,0,0,0.1)) 50%, var(--creator-gradient-to, transparent) 100%)"
+                        }}
+                      >
                         <div className="relative">
                           <div className="absolute -inset-1 rounded-full bg-purple-500/20 blur-sm group-hover:bg-purple-500/40 transition duration-300" />
                           <img
@@ -5654,7 +5664,12 @@ function SearchView({
                       key={item.data.id}
                       className="group relative aspect-square cursor-pointer overflow-hidden rounded-2xl bg-amber-900/10 ring-1 ring-amber-500/20 transition hover:ring-amber-500/50"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-t from-amber-900/80 via-surface-900/20 to-transparent p-3 flex flex-col justify-between">
+                      <div 
+                        className="absolute inset-0 p-3 flex flex-col justify-between"
+                        style={{
+                          backgroundImage: "linear-gradient(to top, var(--ad-gradient-from, rgba(120,53,4,0.8)) 0%, var(--ad-gradient-via, rgba(0,0,0,0.1)) 50%, var(--ad-gradient-to, transparent) 100%)"
+                        }}
+                      >
                         <div className="bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[10px] font-black tracking-wider px-2 py-0.5 rounded-full uppercase self-start">
                           Sponsored
                         </div>

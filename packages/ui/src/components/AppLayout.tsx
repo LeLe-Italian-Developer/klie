@@ -168,10 +168,20 @@ export default function AppLayout({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.92, y: 8 }}
                     transition={{ type: "spring", stiffness: 400, damping: 28 }}
-                    className="absolute left-0 top-full mt-2 w-52 bg-surface-800/95 backdrop-blur-2xl border border-white/8 rounded-2xl shadow-2xl z-50 p-1.5 overflow-hidden"
+                    className="absolute left-0 top-full mt-2 w-52 rounded-2xl shadow-2xl z-50 p-1.5 overflow-hidden"
+                    style={{
+                      backgroundColor: "hsl(var(--surface-800))",
+                      borderColor: "hsl(var(--border-subtle) / 0.12)",
+                      borderWidth: "1px",
+                    }}
                   >
                     {/* User info header */}
-                    <div className="px-3 py-2.5 border-b border-white/5 mb-1">
+                    <div 
+                      className="px-3 py-2.5 mb-1"
+                      style={{
+                        borderBottom: "1px solid hsl(var(--border-subtle) / 0.05)"
+                      }}
+                    >
                       <p className="text-xs font-bold text-text-high truncate">{profileAlt}</p>
                       <p className="text-[10px] text-text-subtle font-medium mt-0.5">{subscriptionPlan} Plan</p>
                     </div>
