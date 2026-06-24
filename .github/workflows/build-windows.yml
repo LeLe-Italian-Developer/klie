@@ -1,0 +1,50 @@
+name: build-windows
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/desktop/src-tauri/target
+          key: windows-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: windows-cargo-
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install deps
+        run: pnpm install
+
+      - name: Build – Windows x64 NSIS
+        env:
+          TAURI_PRIVATE_KEY: "${{ secrets.TAURI_PRIVATE_KEY }}"
+          TAURI_KEY_PASSWORD: "${{ secrets.TAURI_KEY_PASSWORD }}"
+          KLIE_API_URL: "${{ secrets.KLIE_API_URL }}"
+          KLIE_STRIPE_PUBLISHABLE_KEY: "${{ secrets.KLIE_STRIPE_PUBLISHABLE_KEY }}"
+        run: pnpm tauri build --target x86_64-pc-windows-msvc --bundles nsis
+        working-directory: apps/desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klie-windows-x64
+          path: |
+            apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe

@@ -5011,10 +5011,10 @@ function SecurityPage({ dataLog, setDataLog, vpnConnected, setVpnConnected, vpnP
 function UpdatesPage() {
   const [checking, setChecking] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState<boolean | null>(null);
-  const [latestVersion, setLatestVersion] = useState("1.0.0");
+  const [latestVersion, setLatestVersion] = useState("1.1.0");
   const [downloadUrl, setDownloadUrl] = useState("https://revtech.vercel.app/download");
   const [updateNotes, setUpdateNotes] = useState("");
-  const currentVersion = "1.0.0";
+  const currentVersion = "1.1.0";
 
   const checkUpdates = async () => {
     setChecking(true);
@@ -5156,11 +5156,11 @@ function VersionPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <div className="text-[10px] uppercase tracking-[0.22em] text-text-muted font-bold">Version</div>
-            <div className="mt-1 font-display text-xl font-black text-primary-400">1.0.0</div>
+            <div className="mt-1 font-display text-xl font-black text-primary-400">1.1.0</div>
           </div>
           <div>
             <div className="text-[10px] uppercase tracking-[0.22em] text-text-muted font-bold">Build Date</div>
-            <div className="mt-1 text-sm text-text-high font-bold pt-1">May 2026</div>
+            <div className="mt-1 text-sm text-text-high font-bold pt-1">June 2026</div>
           </div>
         </div>
         <div className="mt-6 pt-6 border-t border-border-subtle/10">
@@ -7603,7 +7603,7 @@ function App() {
 
   // Check version on startup — force upgrade if server says DEPRECATED
   useEffect(() => {
-    const CURRENT_VERSION = "1.0.0";
+    const CURRENT_VERSION = "1.1.0";
     async function checkVersionOnStartup() {
       try {
         let p = "macos";

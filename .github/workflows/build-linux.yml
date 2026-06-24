@@ -1,0 +1,59 @@
+name: build-linux
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Install Linux build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libfuse2
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/desktop/src-tauri/target
+          key: linux-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: linux-cargo-
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install deps
+        run: pnpm install
+
+      - name: Build – Linux AppImage
+        env:
+          TAURI_PRIVATE_KEY: "${{ secrets.TAURI_PRIVATE_KEY }}"
+          TAURI_KEY_PASSWORD: "${{ secrets.TAURI_KEY_PASSWORD }}"
+          KLIE_API_URL: "${{ secrets.KLIE_API_URL }}"
+          KLIE_STRIPE_PUBLISHABLE_KEY: "${{ secrets.KLIE_STRIPE_PUBLISHABLE_KEY }}"
+        run: pnpm tauri build --target x86_64-unknown-linux-gnu --bundles appimage
+        working-directory: apps/desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: klie-linux-appimage
+          path: apps/desktop/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
