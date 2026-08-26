@@ -149,6 +149,12 @@ fn init_db(conn: &Connection) -> rusqlite::Result<()> {
             downloaded_at INTEGER NOT NULL
         );
     ", []);
+    let _ = conn.execute("
+        CREATE TABLE IF NOT EXISTS embeddings_cache (
+            text_hash TEXT PRIMARY KEY,
+            embedding TEXT NOT NULL
+        );
+    ", []);
     let _ = conn.execute("DELETE FROM local_memories_v2 WHERE id = 'mem-initial'", []);
     Ok(())
 }
@@ -346,8 +352,6 @@ async fn perform_web_search(query: &str) -> String {
 
 #[tauri::command]
 async fn fetch_opengraph_data(url: String) -> Result<serde_json::Value, String> {
-
-
     let client = reqwest::Client::builder()
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         .build()
@@ -364,67 +368,71 @@ async fn fetch_opengraph_data(url: String) -> Result<serde_json::Value, String> 
 
     let html = res.text().await.map_err(|e| format!("Failed to read response: {}", e))?;
 
-    let mut name = String::new();
-    let mut description = String::new();
-    let mut image_url = String::new();
+    let (name, description, image_url) = {
+        let mut name = String::new();
+        let mut description = String::new();
+        let mut image_url = String::new();
 
-    // Simple string search for OpenGraph tags
-    // og:title
-    if let Some(start) = html.find("property=\"og:title\"") {
-        if let Some(content_start) = html[start..].find("content=\"") {
-            let actual_start = start + content_start + 9;
-            if let Some(content_end) = html[actual_start..].find("\"") {
-                name = html[actual_start..actual_start + content_end].to_string();
-            }
-        }
-    } else if let Some(start) = html.find("name=\"og:title\"") {
-        if let Some(content_start) = html[start..].find("content=\"") {
-            let actual_start = start + content_start + 9;
-            if let Some(content_end) = html[actual_start..].find("\"") {
-                name = html[actual_start..actual_start + content_end].to_string();
-            }
-        }
-    }
+        let document = scraper::Html::parse_document(&html);
+        if let Ok(meta_selector) = scraper::Selector::parse("meta") {
+            for meta in document.select(&meta_selector) {
+                let value = meta.value();
+                let property = value.attr("property").or_else(|| value.attr("name"));
+                let content = value.attr("content");
 
-    // og:description
-    if let Some(start) = html.find("property=\"og:description\"") {
-        if let Some(content_start) = html[start..].find("content=\"") {
-            let actual_start = start + content_start + 9;
-            if let Some(content_end) = html[actual_start..].find("\"") {
-                description = html[actual_start..actual_start + content_end].to_string();
+                if let (Some(prop), Some(cont)) = (property, content) {
+                    match prop {
+                        "og:title" | "twitter:title" => {
+                            if name.is_empty() {
+                                name = cont.to_string();
+                            }
+                        }
+                        "og:description" | "twitter:description" => {
+                            if description.is_empty() {
+                                description = cont.to_string();
+                            }
+                        }
+                        "og:image" | "twitter:image" => {
+                            if image_url.is_empty() {
+                                image_url = cont.to_string();
+                            }
+                        }
+                        _ => {}
+                    }
+                }
             }
         }
-    } else if let Some(start) = html.find("name=\"og:description\"") {
-        if let Some(content_start) = html[start..].find("content=\"") {
-            let actual_start = start + content_start + 9;
-            if let Some(content_end) = html[actual_start..].find("\"") {
-                description = html[actual_start..actual_start + content_end].to_string();
-            }
-        }
-    }
 
-    // og:image
-    if let Some(start) = html.find("property=\"og:image\"") {
-        if let Some(content_start) = html[start..].find("content=\"") {
-            let actual_start = start + content_start + 9;
-            if let Some(content_end) = html[actual_start..].find("\"") {
-                image_url = html[actual_start..actual_start + content_end].to_string();
+        if name.is_empty() {
+            if let Ok(title_selector) = scraper::Selector::parse("title") {
+                if let Some(title_elem) = document.select(&title_selector).next() {
+                    name = title_elem.text().collect::<Vec<_>>().join(" ");
+                }
             }
         }
-    } else if let Some(start) = html.find("name=\"og:image\"") {
-        if let Some(content_start) = html[start..].find("content=\"") {
-            let actual_start = start + content_start + 9;
-            if let Some(content_end) = html[actual_start..].find("\"") {
-                image_url = html[actual_start..actual_start + content_end].to_string();
-            }
-        }
-    }
+
+        (name, description, image_url)
+    };
 
     let mut image_base64 = String::new();
     let mut mime_type = "image/jpeg".to_string();
 
     if !image_url.is_empty() {
-        if let Ok(img_res) = client.get(&image_url).send().await {
+        let resolved_url = if image_url.starts_with('/') {
+            if let Ok(base) = reqwest::Url::parse(&url) {
+                if let Ok(joined) = base.join(&image_url) {
+                    joined.to_string()
+                } else {
+                    image_url.clone()
+                }
+            } else {
+                image_url.clone()
+            }
+        } else {
+            image_url.clone()
+        };
+
+        if let Ok(img_res) = client.get(&resolved_url).send().await {
             if img_res.status().is_success() {
                 if let Some(content_type) = img_res.headers().get("content-type") {
                     if let Ok(ct) = content_type.to_str() {
@@ -444,7 +452,6 @@ async fn fetch_opengraph_data(url: String) -> Result<serde_json::Value, String> 
         "imageBase64": image_base64,
         "imageMimeType": mime_type
     }))
-
 }
 
 // ─── Checkpoints ────────────────────────────────────────────────────────────
@@ -755,7 +762,7 @@ pub struct LocalCharacter {
 
 fn get_api_base_url() -> String {
     // Obfuscated string for the production API URL
-    obfstr!("https://revtech.vercel.app").to_string()
+    obfstr!("https://revtechcompany.com").to_string()
 }
 
 #[allow(dead_code)]
@@ -3877,7 +3884,7 @@ async fn process_ocr_vision(
     let form = reqwest::multipart::Form::new()
         .part("image", reqwest::multipart::Part::bytes(image_data).file_name("sketch.png"));
 
-    let response = client.post("https://revtech.vercel.app/api/desktop/vision/ocr")
+    let response = client.post("https://revtechcompany.com/api/desktop/vision/ocr")
         .header("Authorization", format!("Bearer {}", session_token))
         .multipart(form)
         .send()
@@ -3906,7 +3913,7 @@ async fn send_otp(
     };
 
     let client = reqwest::Client::new();
-    let response = client.post("https://revtech.vercel.app/api/desktop/auth/mfa/otp/send")
+    let response = client.post("https://revtechcompany.com/api/desktop/auth/mfa/otp/send")
         .header("Authorization", format!("Bearer {}", session_token))
         .json(&serde_json::json!({
             "userId": user_id,
@@ -3939,7 +3946,7 @@ async fn verify_otp(
     };
 
     let client = reqwest::Client::new();
-    let response = client.post("https://revtech.vercel.app/api/desktop/auth/mfa/otp/verify")
+    let response = client.post("https://revtechcompany.com/api/desktop/auth/mfa/otp/verify")
         .header("Authorization", format!("Bearer {}", session_token))
         .json(&serde_json::json!({
             "userId": user_id,
@@ -3973,7 +3980,7 @@ async fn get_cloud_token(
     };
 
     let client = reqwest::Client::new();
-    let response = client.get(format!("https://revtech.vercel.app/api/desktop/cloud/token?userId={}&provider={}", user_id, provider))
+    let response = client.get(format!("https://revtechcompany.com/api/desktop/cloud/token?userId={}&provider={}", user_id, provider))
         .header("Authorization", format!("Bearer {}", session_token))
         .send()
         .await
@@ -3989,7 +3996,7 @@ async fn get_cloud_token(
 #[tauri::command]
 async fn get_ui_config(_state: tauri::State<'_, AppState>) -> Result<serde_json::Value, String> {
     let client = reqwest::Client::new();
-    let response = client.get("https://revtech.vercel.app/api/desktop/config/ui")
+    let response = client.get("https://revtechcompany.com/api/desktop/config/ui")
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -4280,7 +4287,7 @@ pub fn run() {
 
                         // Only hit the network when backup is ON and there are failures to retry.
                         let client = reqwest::Client::new();
-                        if client.get("https://revtech.vercel.app/api/v1/app-status").send().await.is_err() {
+                        if client.get("https://revtechcompany.com/api/v1/app-status").send().await.is_err() {
                             println!("Queue: App is offline, skipping periodic sync check.");
                             continue;
                         }
@@ -4312,7 +4319,7 @@ pub fn run() {
                 tauri::async_runtime::spawn(async move {
                     // ─── Point 100: Final Kill-Switch Check ───
                     let client = reqwest::Client::new();
-                    if let Ok(resp) = client.get("https://revtech.vercel.app/api/v1/app-status").send().await {
+                    if let Ok(resp) = client.get("https://revtechcompany.com/api/v1/app-status").send().await {
                         if let Ok(json) = resp.json::<serde_json::Value>().await {
                             if json["status"] == "BRICKED" || json["killSwitch"] == true {
                                 println!("CRITICAL: App remotely bricked by server.");

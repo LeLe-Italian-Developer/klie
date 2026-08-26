@@ -2923,7 +2923,7 @@ const ReportForm = ({ character, currentUser }: { character: any; currentUser: a
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("https://revtech.vercel.app/api/desktop/report", {
+      const res = await fetch("https://revtechcompany.com/api/desktop/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

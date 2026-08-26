@@ -20,7 +20,7 @@ import Lenis from "lenis";
 
 const hasHover = typeof window !== "undefined" && window.innerWidth >= 1024;
 // Base API URL (always points to live production Vercel)
-const API_URL = "https://revtech.vercel.app";
+const API_URL = "https://revtechcompany.com";
 
 // Safe invoke helper (top-level for all components to access)
 const invoke = async <T,>(cmd: string, args?: any): Promise<T> => {
@@ -91,7 +91,7 @@ installExternalLinkInterceptor();
 
 const mapLocalCharToCamel = (lc: any): Character => {
   if (!lc) return lc;
-  return {
+  const char: Character = {
     id: lc.id,
     name: lc.name,
     greeting: lc.greeting || "",
@@ -110,10 +110,13 @@ const mapLocalCharToCamel = (lc: any): Character => {
     imageUrl: lc.imageUrl || "",
     creatorName: lc.creatorName || "Offline Cached",
     creatorId: lc.creatorId || "",
-    points: lc.points || 0,
     isWorld: lc.isWorld === 1 || lc.isWorld === true,
     isDownloaded: lc.isDownloaded === 1 || lc.isDownloaded === true,
   };
+  if (lc.points !== undefined) {
+    char.points = lc.points;
+  }
+  return char;
 };
 
 const parseLocationsText = (text: string) => {
@@ -273,7 +276,7 @@ type Character = {
   id: string;
   name: string;
   creatorName: string;
-  points: number;
+  points?: number;
   imageUrl: string;
   isPro?: boolean;
   releaseLabel?: string;
@@ -860,7 +863,7 @@ function HomeView({
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 2000);
-        const res = await fetch("https://revtech.vercel.app/api/currency", { signal: controller.signal });
+        const res = await fetch("https://revtechcompany.com/api/currency", { signal: controller.signal });
         clearTimeout(timeoutId);
         if (res.ok) {
           const data = await res.json();
@@ -1073,7 +1076,7 @@ function HomeView({
             ))
           ) : (
             characters
-              .sort((a, b) => b.points - a.points)
+              .sort((a, b) => (b.points || 0) - (a.points || 0))
               .slice(0, 5)
               .map((c, index) => (
                 <motion.div
@@ -1083,7 +1086,7 @@ function HomeView({
                   transition={{ duration: 0.4, delay: index * 0.07, ease: [0.16, 1, 0.3, 1] }}
                 >
                   <div className="block cursor-pointer" onClick={() => onSelectCharacter(c.id)}>
-                    <CharacterCard {...c} onClick={() => onSelectCharacter(c.id)} />
+                    <CharacterCard {...c} points={c.points || 0} onClick={() => onSelectCharacter(c.id)} />
                   </div>
                 </motion.div>
               ))
@@ -1343,7 +1346,9 @@ function ChatView({
           }
         } else {
           // Cloud-by-default stub save
-          fetch(`${API_URL}/api/desktop/characters/${charId}`)
+          fetch(`${API_URL}/api/desktop/characters/${charId}`, {
+            headers: currentUser ? { "Authorization": `Bearer ${currentUser.sessionToken}` } : {}
+          })
             .then(res => res.json())
             .then(async (data) => {
               if (data && data.id) {
@@ -1760,6 +1765,7 @@ function ChatView({
         lastMessage: conv.lastMessage,
         greeting: char?.greeting,
         hasUserMessage: conv.hasUserMessage,
+        points: char?.points || 0,
       };
     });
   }, [conversations, allCharacters]);
@@ -1829,7 +1835,7 @@ function ChatView({
         onTalkOnDiscord={(botName: string) => {
           const foundChar = allCharacters.find(c => c.name.toLowerCase() === botName.toLowerCase());
           const botId = foundChar?.id || "fallback";
-          const botBrowserUrl = `https://revtech.vercel.app/characters/${botId}`;
+          const botBrowserUrl = `https://revtechcompany.com/characters/${botId}`;
 
           // Open the Bot Profile safely via standard Tauri opener in a single clean call
           openUrl(botBrowserUrl);
@@ -2814,7 +2820,7 @@ function CreatorsView({
                 </div>
               </div>
 
-              <form className="space-y-4" onSubmit={handleSubmit}>
+              <form id="creator-form" className="space-y-4" onSubmit={handleSubmit}>
                 <div className="space-y-4 text-left max-h-[55vh] overflow-y-auto pr-2 pb-6">
 
                 {/* STEP 1: Avatar Selection */}
@@ -4019,7 +4025,7 @@ function CreatorsView({
                           <div className="flex-1 min-w-0">
                             <div className="font-display text-lg text-text-high truncate">{character.name}</div>
                             <div className="text-sm text-text-muted truncate">
-                              {character.points.toLocaleString("en-US")} total points
+                              {(character.points || 0).toLocaleString("en-US")} total points
                             </div>
                           </div>
                         </div>
@@ -4493,7 +4499,7 @@ function AccountPage({ currentUser, setCurrentUser, deviceType }: SettingsPagePr
               whileHover={hasHover ? { scale: 1.02 } : undefined}
               whileTap={{ scale: 0.98 }}
               onClick={() => {
-                openUrl("https://revtech.vercel.app/account");
+                openUrl("https://revtechcompany.com/account");
               }}
               className="rounded-full bg-white/5 border border-border-subtle/10 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-text-high hover:bg-white/10 transition-colors inline-block text-center cursor-pointer"
             >
@@ -4513,13 +4519,13 @@ function AccountPage({ currentUser, setCurrentUser, deviceType }: SettingsPagePr
 
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border-subtle/10">
             <button
-              onClick={() => openUrl("https://revtech.vercel.app/terms")}
+              onClick={() => openUrl("https://revtechcompany.com/terms")}
               className="py-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-white/5 border border-border-subtle/10 text-text-muted hover:text-text-high hover:bg-white/10 transition cursor-pointer text-center"
             >
               Terms of Service
             </button>
             <button
-              onClick={() => openUrl("https://revtech.vercel.app/privacy")}
+              onClick={() => openUrl("https://revtechcompany.com/privacy")}
               className="py-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-white/5 border border-border-subtle/10 text-text-muted hover:text-text-high hover:bg-white/10 transition cursor-pointer text-center"
             >
               Privacy Policy
@@ -5012,7 +5018,7 @@ function UpdatesPage() {
   const [checking, setChecking] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState<boolean | null>(null);
   const [latestVersion, setLatestVersion] = useState("1.1.0");
-  const [downloadUrl, setDownloadUrl] = useState("https://revtech.vercel.app/download");
+  const [downloadUrl, setDownloadUrl] = useState("https://revtechcompany.com/download");
   const [updateNotes, setUpdateNotes] = useState("");
   const currentVersion = "1.1.0";
 
@@ -5024,7 +5030,7 @@ function UpdatesPage() {
       else if (navigator.userAgent.indexOf("Linux") !== -1) p = "linux";
       else if (navigator.userAgent.indexOf("Android") !== -1) p = "android";
 
-      const res = await fetch(`https://revtech.vercel.app/api/desktop/check-version?v=${currentVersion}&p=${p}`);
+      const res = await fetch(`https://revtechcompany.com/api/desktop/check-version?v=${currentVersion}&p=${p}`);
       const data = await res.json();
       if (data && data.latestVersion) {
         setLatestVersion(data.latestVersion);
@@ -7025,7 +7031,7 @@ function App() {
       }
 
       // Increment local characters points
-      const nextChars = prev.map((c) => (c.id === charId ? { ...c, points: c.points + 1 } : c));
+      const nextChars = prev.map((c) => (c.id === charId ? { ...c, points: (c.points || 0) + 1 } : c));
 
       // Increment local creators totalPoints
       if (char) {
@@ -7463,7 +7469,7 @@ function App() {
   };
 
   const allCharacters = useMemo(() => {
-    const combined = [...characters];
+    const combined = [...characters, ...localCharacters];
     // Remove duplicates by ID
     const seen = new Set();
     return combined.filter(c => {
@@ -7471,7 +7477,7 @@ function App() {
       seen.add(c.id);
       return true;
     });
-  }, [characters]);
+  }, [characters, localCharacters]);
 
   const previewCharacter = useMemo(() => {
     if (!previewCharacterId) return null;
@@ -7567,7 +7573,7 @@ function App() {
     if (fullDesc.includes("---[SUPPORTING CHARACTERS]---")) {
       const match = fullDesc.split("---[SUPPORTING CHARACTERS]---")[1].split("---")[0].trim();
       if (match) {
-        supportingCharacters = match.split("\n").map(l => l.trim()).filter(Boolean);
+        supportingCharacters = match.split("\n").map((l: string) => l.trim()).filter(Boolean);
       }
     }
 
@@ -7597,7 +7603,7 @@ function App() {
 
   // Force upgrade state — set true when server says this version is deprecated
   const [forceUpgrade, setForceUpgrade] = useState(false);
-  const [forceUpgradeUrl, setForceUpgradeUrl] = useState("https://revtech.vercel.app/download");
+  const [forceUpgradeUrl, setForceUpgradeUrl] = useState("https://revtechcompany.com/download");
   const [forceUpgradeLatest, setForceUpgradeLatest] = useState("");
   const [forceUpgradeNotes, setForceUpgradeNotes] = useState("");
 
@@ -7616,7 +7622,7 @@ function App() {
         // Disable force upgrade overlay to prevent false security violations
         // if (data && data.forceUpgrade === true) {
         //   setForceUpgrade(true);
-        //   setForceUpgradeUrl(data.updateUrl || "https://revtech.vercel.app/download");
+        //   setForceUpgradeUrl(data.updateUrl || "https://revtechcompany.com/download");
         //   setForceUpgradeLatest(data.latestVersion || "");
         //   setForceUpgradeNotes(data.message || "");
         // }
@@ -7980,7 +7986,7 @@ function App() {
       navigate("/");
     } catch (err) {
       console.error("Login failed:", err);
-      setAuthError("Unable to connect to revtech.vercel.app. Please try again.");
+      setAuthError("Unable to connect to revtechcompany.com. Please try again.");
     }
   };
 
@@ -8021,7 +8027,7 @@ function App() {
       navigate("/");
     } catch (err) {
       console.error("Sign up failed:", err);
-      setAuthError("Unable to connect to revtech.vercel.app. Please try again.");
+      setAuthError("Unable to connect to revtechcompany.com. Please try again.");
     }
   };
 
@@ -8256,7 +8262,9 @@ function App() {
     try {
       const localChar = await invoke<any>("get_local_character", { characterId: id });
       if (!localChar) {
-        const res = await fetch(`${API_URL}/api/desktop/characters/${id}`);
+        const res = await fetch(`${API_URL}/api/desktop/characters/${id}`, {
+          headers: currentUser ? { "Authorization": `Bearer ${currentUser.sessionToken}` } : {}
+        });
         const data = await res.json();
         if (data && data.id) {
           const stubChar = { ...data, isDownloaded: false };
@@ -8327,7 +8335,7 @@ function App() {
         return;
       }
       const personality = updates.personality ?? existing?.personality ?? "";
-      const selectedEditChips = personality ? personality.split(",").map(t => t.trim()).filter(Boolean) : [];
+      const selectedEditChips = personality ? personality.split(",").map((t: string) => t.trim()).filter(Boolean) : [];
       if (selectedEditChips.length > 7) {
         alert("Personality must be maximum 7 tags.");
         return;
@@ -8575,7 +8583,7 @@ function App() {
                               </span>
                             )}
 
-                            {previewCharacter.personality && previewCharacter.personality.split(", ").map((trait, idx) => (
+                            {previewCharacter.personality && previewCharacter.personality.split(", ").map((trait: string, idx: number) => (
                               <span key={idx} className="bg-white/5 border border-white/10 text-text-high text-[11px] font-semibold px-3 py-1 rounded-full flex items-center gap-1.5">
                                 <span className="text-emerald-400">✦</span> {trait.trim()}
                               </span>
@@ -9339,7 +9347,7 @@ function App() {
                             </span>
                           )}
 
-                          {previewCharacter.personality && previewCharacter.personality.split(", ").map((trait, idx) => (
+                          {previewCharacter.personality && previewCharacter.personality.split(", ").map((trait: string, idx: number) => (
                             <span key={idx} className="bg-white/5 border border-white/10 text-text-high text-[11px] font-semibold px-3 py-1 rounded-full flex items-center gap-1.5">
                               <span className="text-emerald-400">✦</span> {trait.trim()}
                             </span>
